@@ -8,6 +8,7 @@ import { RustyBehavior } from '../ai/behaviors/RustyBehavior';
 import { AIBehavior } from '../ai/AIBehavior';
 import { GAME_WIDTH, GAME_HEIGHT, SHIP, AI, PHYSICS, COLORS } from '../config';
 import { createStarfieldTexture } from '../ui/Starfield';
+import { TouchControls } from '../ui/TouchControls';
 
 export class ArenaScene extends Phaser.Scene {
   private player!: Ship;
@@ -17,6 +18,7 @@ export class ArenaScene extends Phaser.Scene {
   private damageSystem!: DamageSystem;
   private hud!: HUDSystem;
   private aiBehavior!: AIBehavior;
+  private touchControls!: TouchControls;
 
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private fireKey!: Phaser.Input.Keyboard.Key;
@@ -85,6 +87,9 @@ export class ArenaScene extends Phaser.Scene {
       d: this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.D),
     };
 
+    // Touch controls (auto-detected)
+    this.touchControls = new TouchControls(this);
+
     this.score = 0;
     this.matchStartTime = this.time.now;
     this.matchOver = false;
@@ -93,20 +98,34 @@ export class ArenaScene extends Phaser.Scene {
   update(_time: number, delta: number): void {
     if (this.matchOver) return;
 
-    const now = this.time.now; // Phaser scene time (pauses when tabbed away)
+    const now = this.time.now;
     const ships = [this.player, this.enemy];
 
-    // Player input — set on physics system, consumed inside fixed timestep
+    // Merge keyboard + touch input
+    const touch = this.touchControls.getInput();
     let rotateDir = 0;
     let thrust = 0;
+    let fire = false;
+
+    // Keyboard
     if (this.cursors.left.isDown || this.wasd.a.isDown) rotateDir = -1;
     if (this.cursors.right.isDown || this.wasd.d.isDown) rotateDir = 1;
     if (this.cursors.up.isDown || this.wasd.w.isDown) thrust = 1;
+    if (this.fireKey.isDown) fire = true;
+
+    // Touch (merge — touch overrides if active)
+    if (touch.rotateDir !== 0) rotateDir = touch.rotateDir;
+    if (touch.thrust > 0) thrust = touch.thrust;
+    if (touch.fire) fire = true;
+
     this.physicsSystem.setInput(this.player, { rotateDir, thrust });
 
-    if (this.fireKey.isDown) {
+    if (fire) {
       this.weapons.fireBlaster(this, this.player, 'player', now);
     }
+
+    // Draw touch controls overlay
+    this.touchControls.draw();
 
     // AI
     this.aiBehavior.update(this.enemy, this.player, delta, this, this.weapons, this.physicsSystem, now);
@@ -183,9 +202,17 @@ export class ArenaScene extends Phaser.Scene {
       align: 'center',
     }).setOrigin(0.5).setDepth(200);
 
+    // Restart on ENTER key or screen tap
     this.input.keyboard!.once('keydown-ENTER', () => {
       this.weapons.clear();
       this.hud.destroy();
+      this.touchControls.destroy();
+      this.scene.restart();
+    });
+    this.input.once('pointerdown', () => {
+      this.weapons.clear();
+      this.hud.destroy();
+      this.touchControls.destroy();
       this.scene.restart();
     });
   }

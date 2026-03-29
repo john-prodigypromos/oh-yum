@@ -1,5 +1,3 @@
-import { PLAYER_MAX_HP } from '../config';
-
 export interface InventorySlot {
   itemId: string;
   quantity: number;
@@ -22,8 +20,8 @@ export interface GameStateData {
 
 const DEFAULT_STATE: GameStateData = {
   player: {
-    hp: PLAYER_MAX_HP,
-    maxHp: PLAYER_MAX_HP,
+    hp: 6,
+    maxHp: 6,
     rupees: 0,
     keys: 0,
   },

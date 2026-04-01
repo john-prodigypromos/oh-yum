@@ -1,13 +1,22 @@
 import Phaser from 'phaser';
-import { GAME_WIDTH, GAME_HEIGHT } from './config';
+import { GAME_HEIGHT } from './config';
 import { BootScene } from './scenes/BootScene';
 import { TitleScene } from './scenes/TitleScene';
 import { CharacterSelectScene } from './scenes/CharacterSelectScene';
 import { ArenaScene } from './scenes/ArenaScene';
 
+// Calculate game width based on device aspect ratio
+// Keep height fixed at 720, scale width to match screen proportions
+const aspect = window.innerWidth / window.innerHeight;
+const gameWidth = Math.round(GAME_HEIGHT * aspect);
+
+// Update the exported GAME_WIDTH so all systems use the correct value
+import * as cfg from './config';
+(cfg as any).GAME_WIDTH = gameWidth;
+
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
-  width: GAME_WIDTH,
+  width: gameWidth,
   height: GAME_HEIGHT,
   backgroundColor: '#0a1220',
   parent: 'game-container',
@@ -20,11 +29,9 @@ const config: Phaser.Types.Core.GameConfig = {
   },
   scene: [BootScene, TitleScene, CharacterSelectScene, ArenaScene],
   scale: {
-    mode: Phaser.Scale.ENVELOP,
+    mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
     expandParent: true,
-    // Let Phaser resize when orientation changes
-    fullscreenTarget: 'game-container',
   },
   input: {
     activePointers: 4,
@@ -33,7 +40,7 @@ const config: Phaser.Types.Core.GameConfig = {
 
 const game = new Phaser.Game(config);
 
-// Force Phaser to re-check size after orientation changes and iOS address bar hide
+// Force Phaser to re-check size after orientation changes
 window.addEventListener('resize', () => {
   setTimeout(() => game.scale.refresh(), 100);
 });

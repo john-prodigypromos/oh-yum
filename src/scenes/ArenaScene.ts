@@ -8,6 +8,7 @@ import { RustyBehavior } from '../ai/behaviors/RustyBehavior';
 import { AIBehavior } from '../ai/AIBehavior';
 import { GAME_WIDTH, GAME_HEIGHT, SHIP, PHYSICS, COLORS } from '../config';
 import { currentDifficulty, DIFFICULTY } from '../state/Difficulty';
+import { currentCharacter, CHARACTERS } from '../state/Character';
 import { createStarfieldTexture } from '../ui/Starfield';
 import { TouchControls } from '../ui/TouchControls';
 import { SoundSystem } from '../systems/SoundSystem';
@@ -315,19 +316,42 @@ export class ArenaScene extends Phaser.Scene {
         this.sound_sys.evilLaugh();
       });
     } else {
-      bannerBg.fillStyle(0x000000, 0.7);
-      bannerBg.fillRect(0, GAME_HEIGHT / 2 - 90, GAME_WIDTH, 180);
-      const bannerColor = 0x00ff66;
-      bannerBg.lineStyle(3, bannerColor, 1);
-      bannerBg.lineBetween(0, GAME_HEIGHT / 2 - 90, GAME_WIDTH, GAME_HEIGHT / 2 - 90);
-      bannerBg.lineBetween(0, GAME_HEIGHT / 2 + 90, GAME_WIDTH, GAME_HEIGHT / 2 + 90);
+      // Dark overlay for winner's face
+      bannerBg.fillStyle(0x000000, 0.8);
+      bannerBg.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+      // Show the player's character face
+      const charCfg = CHARACTERS[currentCharacter];
+      const heroFace = this.add.image(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 100, charCfg.imageKey);
+      const heroScale = 240 / Math.max(heroFace.width, heroFace.height);
+      heroFace.setScale(heroScale);
+      heroFace.setDepth(200);
+      heroFace.setAlpha(0);
+
+      // Character color border
+      const heroBorder = this.add.graphics();
+      heroBorder.setDepth(199);
+      heroBorder.lineStyle(4, charCfg.color, 1);
+      heroBorder.strokeRect(
+        GAME_WIDTH / 2 - 125, GAME_HEIGHT / 2 - 100 - 125,
+        250, 250
+      );
+
+      // Fade in heroically
+      this.tweens.add({
+        targets: heroFace,
+        alpha: 1,
+        scale: heroScale * 1.05,
+        duration: 800,
+        ease: 'Power2',
+      });
     }
 
     const headline = result === 'win'
       ? 'YOU WON!\nHUMANITY HAS BEEN SAVED!'
       : 'YOU LOST!\nTRY AGAIN LOSER!';
 
-    const textY = result === 'lose' ? GAME_HEIGHT / 2 + 130 : GAME_HEIGHT / 2 - 30;
+    const textY = result === 'lose' ? GAME_HEIGHT / 2 + 130 : GAME_HEIGHT / 2 + 100;
     this.add.text(GAME_WIDTH / 2, textY, headline, {
       fontSize: '28px',
       fontFamily: 'Arial, sans-serif',
@@ -343,7 +367,7 @@ export class ArenaScene extends Phaser.Scene {
       : '';
 
     if (subline) {
-      this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 20, subline, {
+      this.add.text(GAME_WIDTH / 2, textY + 40, subline, {
         fontSize: '20px',
         fontFamily: 'Arial, sans-serif',
         fontStyle: 'bold',
@@ -354,7 +378,7 @@ export class ArenaScene extends Phaser.Scene {
       }).setOrigin(0.5, 0.5).setDepth(200);
     }
 
-    this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 60, 'Press ENTER for menu', {
+    this.add.text(GAME_WIDTH / 2, textY + 70, 'Press ENTER for menu', {
       fontSize: '14px',
       fontFamily: 'Arial, sans-serif',
       color: '#ffffff',

@@ -90,13 +90,6 @@ export class TitleScene extends Phaser.Scene {
       color: '#ffffff',
     }).setOrigin(0.5, 0);
 
-    // Keyboard shortcut hint — bright
-    const keyNum = level === 'beginner' ? '1' : level === 'intermediate' ? '2' : '3';
-    this.add.text(btnX + 15, y + btnH / 2, keyNum, {
-      fontSize: '16px', fontFamily: 'Arial, sans-serif', fontStyle: 'bold',
-      color: '#ffffff',
-    }).setOrigin(0, 0.5);
-
     // Interactive zone
     const zone = this.add.zone(btnX, y, btnW, btnH).setOrigin(0, 0).setInteractive();
     zone.on('pointerover', () => {

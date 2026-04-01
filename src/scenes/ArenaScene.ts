@@ -276,22 +276,59 @@ export class ArenaScene extends Phaser.Scene {
       this.score += timeBonus + winBonus;
     }
 
-    // Full-screen banner
+    // Full-screen overlay
     const bannerBg = this.add.graphics();
     bannerBg.setDepth(199);
-    bannerBg.fillStyle(0x000000, 0.7);
-    bannerBg.fillRect(0, GAME_HEIGHT / 2 - 90, GAME_WIDTH, 180);
 
-    const bannerColor = result === 'win' ? 0x00ff66 : 0xff2200;
-    bannerBg.lineStyle(3, bannerColor, 1);
-    bannerBg.lineBetween(0, GAME_HEIGHT / 2 - 90, GAME_WIDTH, GAME_HEIGHT / 2 - 90);
-    bannerBg.lineBetween(0, GAME_HEIGHT / 2 + 90, GAME_WIDTH, GAME_HEIGHT / 2 + 90);
+    if (result === 'lose') {
+      // Dark overlay for Kip's face
+      bannerBg.fillStyle(0x000000, 0.8);
+      bannerBg.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+      // Kip's face — large and menacing
+      const kipFace = this.add.image(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 60, 'villain_kip');
+      const kipScale = 280 / Math.max(kipFace.width, kipFace.height);
+      kipFace.setScale(kipScale);
+      kipFace.setDepth(200);
+      kipFace.setAlpha(0);
+
+      // Red border around Kip
+      const kipBorder = this.add.graphics();
+      kipBorder.setDepth(199);
+      kipBorder.lineStyle(3, 0xff2200, 0.8);
+      kipBorder.strokeRect(
+        GAME_WIDTH / 2 - 145, GAME_HEIGHT / 2 - 60 - 145,
+        290, 290
+      );
+
+      // Fade Kip in dramatically
+      this.tweens.add({
+        targets: kipFace,
+        alpha: 1,
+        scale: kipScale * 1.05,
+        duration: 800,
+        ease: 'Power2',
+      });
+
+      // Evil laugh after a beat
+      this.time.delayedCall(400, () => {
+        this.sound_sys.evilLaugh();
+      });
+    } else {
+      bannerBg.fillStyle(0x000000, 0.7);
+      bannerBg.fillRect(0, GAME_HEIGHT / 2 - 90, GAME_WIDTH, 180);
+      const bannerColor = 0x00ff66;
+      bannerBg.lineStyle(3, bannerColor, 1);
+      bannerBg.lineBetween(0, GAME_HEIGHT / 2 - 90, GAME_WIDTH, GAME_HEIGHT / 2 - 90);
+      bannerBg.lineBetween(0, GAME_HEIGHT / 2 + 90, GAME_WIDTH, GAME_HEIGHT / 2 + 90);
+    }
 
     const headline = result === 'win'
       ? 'YOU WON!\nHUMANITY HAS BEEN SAVED!'
-      : 'YOU LOST!\nPLEASE DO NOT LET THE\nHUMAN RACE DOWN AGAIN!';
+      : 'YOU LOST!\nTRY AGAIN LOSER!';
 
-    this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 30, headline, {
+    const textY = result === 'lose' ? GAME_HEIGHT / 2 + 130 : GAME_HEIGHT / 2 - 30;
+    this.add.text(GAME_WIDTH / 2, textY, headline, {
       fontSize: '28px',
       fontFamily: 'Arial, sans-serif',
       fontStyle: 'bold',

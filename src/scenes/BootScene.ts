@@ -15,6 +15,7 @@ export class BootScene extends Phaser.Scene {
     this.load.image('portrait_william', 'assets/william.jpg');
     this.load.image('logo_player', 'assets/prodigy.png');
     this.load.image('logo_enemy', 'assets/vox.png');
+    this.load.image('villain_kip', 'assets/kip.jpg');
   }
 
   create(): void {

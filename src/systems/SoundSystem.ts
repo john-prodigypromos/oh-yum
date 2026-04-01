@@ -381,6 +381,69 @@ export class SoundSystem {
     });
   }
 
+  // ── Evil laugh: sinister "ha ha ha ha" ──
+  evilLaugh(): void {
+    const ctx = this.ensureCtx();
+    if (!ctx || !this.masterGain) return;
+    const now = ctx.currentTime;
+
+    // Each "ha" is a quick pitch drop with a growly tone
+    const haTimings = [0, 0.22, 0.42, 0.58, 0.72, 0.9, 1.1];
+    const basePitch = [180, 170, 190, 165, 185, 160, 140];
+
+    haTimings.forEach((offset, i) => {
+      const t = now + offset;
+      const pitch = basePitch[i];
+
+      // Main growl tone
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const filter = this.lpf(ctx, 500);
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(pitch, t);
+      osc.frequency.exponentialRampToValueAtTime(pitch * 0.6, t + 0.15);
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(0.18, t + 0.02);
+      gain.gain.setValueAtTime(0.18, t + 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(this.masterGain!);
+      osc.start(t);
+      osc.stop(t + 0.18);
+
+      // Deep sub "body" of each ha
+      const sub = ctx.createOscillator();
+      const subGain = ctx.createGain();
+      sub.type = 'sine';
+      sub.frequency.setValueAtTime(pitch / 2, t);
+      sub.frequency.exponentialRampToValueAtTime(pitch * 0.25, t + 0.15);
+      subGain.gain.setValueAtTime(0, t);
+      subGain.gain.linearRampToValueAtTime(0.25, t + 0.02);
+      subGain.gain.exponentialRampToValueAtTime(0.001, t + 0.16);
+      sub.connect(subGain);
+      subGain.connect(this.masterGain!);
+      sub.start(t);
+      sub.stop(t + 0.16);
+    });
+
+    // Trailing low rumble after the laugh
+    const rumble = ctx.createOscillator();
+    const rumbleGain = ctx.createGain();
+    const rumbleFilter = this.lpf(ctx, 200);
+    rumble.type = 'sawtooth';
+    rumble.frequency.setValueAtTime(50, now + 1.2);
+    rumble.frequency.exponentialRampToValueAtTime(20, now + 2.0);
+    rumbleGain.gain.setValueAtTime(0, now + 1.2);
+    rumbleGain.gain.linearRampToValueAtTime(0.1, now + 1.3);
+    rumbleGain.gain.exponentialRampToValueAtTime(0.001, now + 2.0);
+    rumble.connect(rumbleFilter);
+    rumbleFilter.connect(rumbleGain);
+    rumbleGain.connect(this.masterGain!);
+    rumble.start(now + 1.2);
+    rumble.stop(now + 2.0);
+  }
+
   // ── Defeat: deep descending tones ──
   defeat(): void {
     const ctx = this.ensureCtx();

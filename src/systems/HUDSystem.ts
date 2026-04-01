@@ -69,8 +69,8 @@ export class HUDSystem {
     }).setVisible(false);
 
     this.scoreText = scene.add.text(20, GAME_HEIGHT - 30, 'SCORE: 0', {
-      fontSize: '14px', fontFamily: 'Arial, sans-serif', fontStyle: 'bold', color: '#ffff00',
-      stroke: '#000000', strokeThickness: 1,
+      fontSize: '14px', fontFamily: 'Arial, sans-serif', fontStyle: 'bold', color: '#000000',
+      stroke: '#ffff00', strokeThickness: 2,
     }).setOrigin(0, 0.5).setDepth(100);
 
     this.studioText = scene.add.text(GAME_WIDTH - 16, GAME_HEIGHT - 16, 'PRIDAY LABS', {
@@ -92,10 +92,10 @@ export class HUDSystem {
     this.portraitBorder = scene.add.graphics();
     this.portraitBorder.setDepth(99);
     const colorNum = cfg.color;
-    this.portraitBorder.lineStyle(2, colorNum, 1);
+    this.portraitBorder.lineStyle(4, colorNum, 1);
     this.portraitBorder.strokeRect(
-      px - portraitSize / 2 - 2, py - portraitSize / 2 - 2,
-      portraitSize + 4, portraitSize + 4
+      px - portraitSize / 2 - 4, py - portraitSize / 2 - 4,
+      portraitSize + 8, portraitSize + 8
     );
 
     this.portrait = scene.add.image(px, py, imgKey);

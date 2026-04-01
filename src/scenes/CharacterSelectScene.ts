@@ -43,13 +43,13 @@ export class CharacterSelectScene extends Phaser.Scene {
     const cardH = 520;
     const cardX = cx - cardW / 2;
 
-    // Card background — thin subtle border
+    // Card background — thick bold border
     const gfx = this.add.graphics();
     gfx.fillStyle(0x111822, 0.6);
     gfx.fillRect(cardX, top, cardW, cardH);
 
     const colorNum = cfg.color;
-    gfx.lineStyle(1, colorNum, 0.4);
+    gfx.lineStyle(5, colorNum, 0.9);
     gfx.strokeRect(cardX, top, cardW, cardH);
 
     // Portrait — rendered pixelated
@@ -109,27 +109,20 @@ export class CharacterSelectScene extends Phaser.Scene {
       color: '#ffffff',
     }).setOrigin(0.5, 0);
 
-    // Key hint
-    const keyNum = name === 'owen' ? '1' : '2';
-    this.add.text(cx, top + cardH - 20, `[ ${keyNum} ]`, {
-      fontSize: '16px', fontFamily: 'Arial, sans-serif', fontStyle: 'bold',
-      color: '#ffffff',
-    }).setOrigin(0.5, 0.5);
-
     // Interactive zone for the whole card
     const zone = this.add.zone(cardX, top, cardW, cardH).setOrigin(0, 0).setInteractive();
     zone.on('pointerover', () => {
       gfx.clear();
       gfx.fillStyle(0x1a2838, 0.7);
       gfx.fillRect(cardX, top, cardW, cardH);
-      gfx.lineStyle(1, colorNum, 0.7);
+      gfx.lineStyle(6, colorNum, 1);
       gfx.strokeRect(cardX, top, cardW, cardH);
     });
     zone.on('pointerout', () => {
       gfx.clear();
       gfx.fillStyle(0x111822, 0.6);
       gfx.fillRect(cardX, top, cardW, cardH);
-      gfx.lineStyle(1, colorNum, 0.4);
+      gfx.lineStyle(5, colorNum, 0.9);
       gfx.strokeRect(cardX, top, cardW, cardH);
     });
     zone.on('pointerdown', () => this.selectCharacter(name));

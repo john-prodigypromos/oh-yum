@@ -2,28 +2,71 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>OH-YUM ARENA</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>OH-YUM BLASTER</title>
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="OH-YUM" />
   <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#0a1220" />
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
+    html, body {
       background: #0a1220;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
+      width: 100%;
+      height: 100%;
       overflow: hidden;
       touch-action: none;
       -webkit-touch-callout: none;
       -webkit-user-select: none;
       user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      position: fixed;
+      top: 0;
+      left: 0;
+    }
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    /* Prevent iOS rubber-band scrolling */
+    body { overscroll-behavior: none; }
+    /* Safe area padding for notch devices */
+    canvas {
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
+      padding-left: env(safe-area-inset-left);
+      padding-right: env(safe-area-inset-right);
     }
   </style>
 </head>
 <body>
+  <!-- Landscape orientation prompt for phones -->
+  <div id="rotate-prompt" style="
+    display: none;
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: #0a1220; color: #ffffff; z-index: 99999;
+    justify-content: center; align-items: center; flex-direction: column;
+    font-family: Arial, sans-serif; text-align: center;
+  ">
+    <div style="font-size: 48px; margin-bottom: 16px;">📱↔️</div>
+    <div style="font-size: 20px; font-weight: bold;">Rotate your device</div>
+    <div style="font-size: 14px; margin-top: 8px; color: #aaa;">OH-YUM BLASTER plays best in landscape</div>
+  </div>
+  <script>
+    function checkOrientation() {
+      var p = document.getElementById('rotate-prompt');
+      if (window.innerHeight > window.innerWidth && window.innerWidth < 600) {
+        p.style.display = 'flex';
+      } else {
+        p.style.display = 'none';
+      }
+    }
+    window.addEventListener('resize', checkOrientation);
+    window.addEventListener('orientationchange', checkOrientation);
+    checkOrientation();
+  </script>
   <script type="module" src="/src/main.ts"></script>
 </body>
 </html>

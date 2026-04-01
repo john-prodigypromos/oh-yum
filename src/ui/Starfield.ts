@@ -34,81 +34,81 @@ export function createStarfieldTexture(scene: Phaser.Scene, key: string): void {
   const sunY = GAME_HEIGHT * 1.1;
   const sunR = 400;
 
-  // Enormous outer glow — lights up a huge portion of the screen
+  // Enormous outer glow — hot orange wash across the screen
   const outerGlow = ctx.createRadialGradient(sunX, sunY, sunR * 0.3, sunX, sunY, sunR * 2.5);
-  outerGlow.addColorStop(0, 'rgba(255,160,50,0.06)');
-  outerGlow.addColorStop(0.3, 'rgba(255,120,30,0.03)');
-  outerGlow.addColorStop(0.6, 'rgba(255,80,10,0.015)');
+  outerGlow.addColorStop(0, 'rgba(255,120,20,0.12)');
+  outerGlow.addColorStop(0.3, 'rgba(255,80,10,0.06)');
+  outerGlow.addColorStop(0.6, 'rgba(255,50,0,0.025)');
   outerGlow.addColorStop(1, 'transparent');
   ctx.fillStyle = outerGlow;
   ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
 
-  // Corona layer 3 (huge warm wash)
+  // Corona layer 3 (huge fiery wash)
   const corona3 = ctx.createRadialGradient(sunX, sunY, sunR * 0.4, sunX, sunY, sunR * 1.5);
-  corona3.addColorStop(0, 'rgba(255,180,80,0.1)');
-  corona3.addColorStop(0.4, 'rgba(255,140,50,0.05)');
+  corona3.addColorStop(0, 'rgba(255,140,30,0.18)');
+  corona3.addColorStop(0.4, 'rgba(255,100,10,0.08)');
   corona3.addColorStop(1, 'transparent');
   ctx.fillStyle = corona3;
   ctx.fillRect(sunX - sunR * 1.5, sunY - sunR * 1.5, sunR * 3, sunR * 3);
 
-  // Corona layer 2
+  // Corona layer 2 — deep orange
   const corona2 = ctx.createRadialGradient(sunX, sunY, sunR * 0.5, sunX, sunY, sunR * 1.1);
-  corona2.addColorStop(0, 'rgba(255,200,120,0.15)');
-  corona2.addColorStop(0.5, 'rgba(255,170,80,0.08)');
+  corona2.addColorStop(0, 'rgba(255,160,40,0.25)');
+  corona2.addColorStop(0.5, 'rgba(255,120,20,0.12)');
   corona2.addColorStop(1, 'transparent');
   ctx.fillStyle = corona2;
   ctx.beginPath();
   ctx.arc(sunX, sunY, sunR * 1.1, 0, Math.PI * 2);
   ctx.fill();
 
-  // Corona layer 1 (inner, bright)
+  // Corona layer 1 (inner, intense)
   const corona1 = ctx.createRadialGradient(sunX, sunY, sunR * 0.6, sunX, sunY, sunR);
-  corona1.addColorStop(0, 'rgba(255,230,180,0.25)');
-  corona1.addColorStop(0.3, 'rgba(255,210,140,0.15)');
-  corona1.addColorStop(0.7, 'rgba(255,180,100,0.06)');
+  corona1.addColorStop(0, 'rgba(255,200,80,0.4)');
+  corona1.addColorStop(0.3, 'rgba(255,160,40,0.25)');
+  corona1.addColorStop(0.7, 'rgba(255,120,20,0.1)');
   corona1.addColorStop(1, 'transparent');
   ctx.fillStyle = corona1;
   ctx.beginPath();
   ctx.arc(sunX, sunY, sunR, 0, Math.PI * 2);
   ctx.fill();
 
-  // Sun surface — the visible edge curving across the corner
+  // Sun surface — blazing orange-white
   const surfGrad = ctx.createRadialGradient(sunX, sunY, sunR * 0.7, sunX, sunY, sunR * 0.82);
-  surfGrad.addColorStop(0, 'rgba(255,240,200,0.6)');
-  surfGrad.addColorStop(0.5, 'rgba(255,220,150,0.4)');
-  surfGrad.addColorStop(0.8, 'rgba(255,190,100,0.15)');
+  surfGrad.addColorStop(0, 'rgba(255,220,120,0.8)');
+  surfGrad.addColorStop(0.3, 'rgba(255,180,60,0.6)');
+  surfGrad.addColorStop(0.6, 'rgba(255,140,30,0.3)');
   surfGrad.addColorStop(1, 'transparent');
   ctx.fillStyle = surfGrad;
   ctx.beginPath();
   ctx.arc(sunX, sunY, sunR * 0.82, 0, Math.PI * 2);
   ctx.fill();
 
-  // Bright limb (the sharp visible edge of the sun)
+  // Bright limb (the sharp visible edge — hot orange)
   ctx.save();
-  ctx.globalAlpha = 0.35;
-  ctx.strokeStyle = '#ffdd99';
-  ctx.lineWidth = 3;
+  ctx.globalAlpha = 0.5;
+  ctx.strokeStyle = '#ff9922';
+  ctx.lineWidth = 4;
   ctx.beginPath();
   ctx.arc(sunX, sunY, sunR * 0.78, -Math.PI * 0.6, -Math.PI * 0.1);
   ctx.stroke();
   ctx.restore();
 
-  // Hot core glow at the center of the visible arc
+  // White-hot core glow at the visible arc
   const coreX = sunX + sunR * 0.55;
   const coreY = sunY - sunR * 0.55;
-  const coreGlow = ctx.createRadialGradient(coreX, coreY, 0, coreX, coreY, 60);
-  coreGlow.addColorStop(0, 'rgba(255,255,230,0.12)');
-  coreGlow.addColorStop(0.5, 'rgba(255,230,180,0.05)');
+  const coreGlow = ctx.createRadialGradient(coreX, coreY, 0, coreX, coreY, 80);
+  coreGlow.addColorStop(0, 'rgba(255,240,180,0.2)');
+  coreGlow.addColorStop(0.3, 'rgba(255,180,60,0.1)');
   coreGlow.addColorStop(1, 'transparent');
   ctx.fillStyle = coreGlow;
   ctx.beginPath();
-  ctx.arc(coreX, coreY, 60, 0, Math.PI * 2);
+  ctx.arc(coreX, coreY, 80, 0, Math.PI * 2);
   ctx.fill();
 
   // Solar prominences / flare wisps
   ctx.save();
-  ctx.globalAlpha = 0.04;
-  ctx.strokeStyle = '#ffaa44';
+  ctx.globalAlpha = 0.07;
+  ctx.strokeStyle = '#ff7711';
   ctx.lineWidth = 2;
   for (let i = 0; i < 8; i++) {
     const angle = -Math.PI * 0.5 + (rng() - 0.5) * Math.PI * 0.8;

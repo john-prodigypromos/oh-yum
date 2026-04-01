@@ -114,7 +114,7 @@ export function stampLogoOnSpriteSheet(
   }
 
   // Refresh the texture so Phaser picks up the changes
-  sheetTex.refresh();
+  (sheetTex as any).update();
 }
 
 /**

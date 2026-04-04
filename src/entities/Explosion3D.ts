@@ -4,9 +4,9 @@
 
 import * as THREE from 'three';
 
-const PARTICLES_PER_EXPLOSION = 120;
-const MAX_EXPLOSIONS = 6;
-const EXPLOSION_DURATION = 0.8; // seconds
+const PARTICLES_PER_EXPLOSION = 150;
+const MAX_EXPLOSIONS = 10;
+const EXPLOSION_DURATION = 1.2; // seconds — visible at distance
 
 interface ExplosionSlot {
   active: boolean;
@@ -27,7 +27,7 @@ export class ExplosionPool {
     this.scene = scene;
 
     // Particle geometry — small plane quad
-    const geo = new THREE.PlaneGeometry(0.6, 0.6);
+    const geo = new THREE.PlaneGeometry(1.5, 1.5); // big particles visible at 35 units
     const mat = new THREE.MeshBasicMaterial({
       color: 0xffaa44,
       transparent: true,
@@ -59,7 +59,7 @@ export class ExplosionPool {
         // Spherical random velocity
         const theta = Math.random() * Math.PI * 2;
         const phi = Math.acos(2 * Math.random() - 1);
-        const speed = 20 + Math.random() * 60;
+        const speed = 30 + Math.random() * 80;
         velocities.push(new THREE.Vector3(
           speed * Math.sin(phi) * Math.cos(theta),
           speed * Math.sin(phi) * Math.sin(theta),

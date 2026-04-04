@@ -201,12 +201,15 @@ export function updateArena(
     // Small explosion at impact
     explosions.spawn(evt.bolt.mesh.position.clone());
 
-    // Big explosion on death
+    // Big explosion on death — multiple bursts for dramatic effect
     if (!evt.target.alive) {
-      explosions.spawn(evt.target.position.clone());
+      const pos = evt.target.position.clone();
+      explosions.spawn(pos);
+      explosions.spawn(pos.clone().add(new THREE.Vector3(3, 2, -1)));
+      explosions.spawn(pos.clone().add(new THREE.Vector3(-2, -1, 2)));
       state.sound.explosion();
       if (!evt.target.isPlayer) {
-        state.score += 500; // kill bonus
+        state.score += 500;
         evt.target.group.visible = false;
       }
     }

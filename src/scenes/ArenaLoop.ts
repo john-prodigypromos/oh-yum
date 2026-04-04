@@ -14,6 +14,7 @@ import { processBoltDamage } from '../systems/DamageSystem3D';
 import { RustyBehavior3D } from '../ai/behaviors/RustyBehavior3D';
 import { createPlayerShipGeometry, createEnemyShipGeometry } from '../ships/ShipGeometry';
 import { createPlayerMaterials, createEnemyMaterials, applyMaterials } from '../ships/ShipMaterials';
+import { TouchControls3D } from '../ui/TouchControls3D';
 import { SHIP, AI } from '../config';
 import { getCurrentLevel, type LevelConfig } from '../state/LevelState';
 import { DIFFICULTY, currentDifficulty } from '../state/Difficulty';
@@ -25,6 +26,7 @@ export interface ArenaState {
   boltPool: BoltPool;
   explosions: ExplosionPool;
   cockpitCam: CockpitCamera;
+  touchControls: TouchControls3D;
   score: number;
   levelConfig: LevelConfig;
   gameOver: boolean;
@@ -96,10 +98,11 @@ export function createArenaState(
   const boltPool = new BoltPool(scene);
   const explosions = new ExplosionPool(scene);
   const cockpitCam = new CockpitCamera(camera);
+  const touchControls = new TouchControls3D();
 
   return {
     player, enemies, enemyAIs,
-    boltPool, explosions, cockpitCam,
+    boltPool, explosions, cockpitCam, touchControls,
     score: previousScore,
     levelConfig,
     gameOver: false,
@@ -115,20 +118,28 @@ export function updateArena(
 ): void {
   if (state.gameOver || state.victory) return;
 
-  const { player, enemies, enemyAIs, boltPool, explosions, cockpitCam } = state;
+  const { player, enemies, enemyAIs, boltPool, explosions, cockpitCam, touchControls } = state;
 
-  // ── Player input ──
+  // ── Player input (keyboard + touch merged) ──
+  const touch = touchControls.getInput();
+  const kbYaw = (keys['ArrowLeft'] || keys['KeyA'] ? -1 : 0) + (keys['ArrowRight'] || keys['KeyD'] ? 1 : 0);
+  const kbPitch = (keys['KeyQ'] ? 1 : 0) + (keys['KeyE'] ? -1 : 0);
+  const kbThrust = (keys['ArrowUp'] || keys['KeyW'] ? 1 : 0) + (keys['ArrowDown'] || keys['KeyS'] ? -1 : 0);
+
   const input: ShipInput = {
-    yaw: (keys['ArrowLeft'] || keys['KeyA'] ? -1 : 0) + (keys['ArrowRight'] || keys['KeyD'] ? 1 : 0),
-    pitch: (keys['KeyQ'] ? 1 : 0) + (keys['KeyE'] ? -1 : 0),
+    yaw: Math.max(-1, Math.min(1, kbYaw + touch.yaw)),
+    pitch: Math.max(-1, Math.min(1, kbPitch + touch.pitch)),
     roll: 0,
-    thrust: (keys['ArrowUp'] || keys['KeyW'] ? 1 : 0) + (keys['ArrowDown'] || keys['KeyS'] ? -1 : 0),
+    thrust: Math.max(-1, Math.min(1, kbThrust + touch.thrust)),
   };
 
   // ── Player weapons ──
-  if (keys['Space']) {
+  if (keys['Space'] || touch.fire) {
     tryFireWeapon(player, boltPool, now);
   }
+
+  // Draw touch controls
+  touchControls.draw();
 
   // ── Enemy AI + weapons ──
   for (let i = 0; i < enemies.length; i++) {

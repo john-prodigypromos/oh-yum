@@ -217,11 +217,18 @@ function showCharSelectOverlay(): void {
   for (const c of chars) {
     const card = document.createElement('button');
     card.style.cssText = `
-      width:180px;padding:30px 20px;background:rgba(17,24,34,0.9);
+      width:200px;padding:16px 20px;background:rgba(17,24,34,0.9);
       border:2px solid #${c.color.toString(16).padStart(6, '0')};
       color:#fff;font-family:Arial,sans-serif;cursor:pointer;border-radius:6px;
       text-align:center;
     `;
+
+    // Portrait image
+    const portrait = document.createElement('img');
+    portrait.src = `/portraits/${c.id}.jpg`;
+    portrait.alt = c.name;
+    portrait.style.cssText = 'width:140px;height:140px;border-radius:50%;object-fit:cover;margin-bottom:12px;border:3px solid #' + c.color.toString(16).padStart(6, '0') + ';';
+    card.appendChild(portrait);
 
     const name = document.createElement('div');
     name.textContent = c.name;

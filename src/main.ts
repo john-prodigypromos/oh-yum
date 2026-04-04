@@ -304,6 +304,9 @@ function startArena(): void {
 
   hud = new HUD3D();
   crosshairEl.style.display = 'block';
+
+  // Test explosion to confirm they render
+  arena.explosions.spawn(arena.enemies[0]?.position.clone() ?? new THREE.Vector3(0, 0, 20), 6);
 }
 
 function showHighScoreOverlay(): void {
@@ -470,7 +473,7 @@ function animate() {
     }
 
     // Check win/lose — wait 2.5s for explosions to play out
-    const TRANSITION_DELAY = 2500;
+    const TRANSITION_DELAY = 4000; // wait for 3s explosion to finish
 
     if (arena.victory && now - arena.victoryTime > TRANSITION_DELAY) {
       const hasNext = advanceLevel(

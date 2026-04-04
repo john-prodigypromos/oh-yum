@@ -23,8 +23,8 @@ function injectCSS() {
   style.textContent = `
     .explosion-fx {
       position: fixed;
-      pointer-events: none;
-      z-index: 18;
+      pointer-events: none !important;
+      z-index: 50;
       border-radius: 50%;
       transform: translate(-50%, -50%);
     }
@@ -45,11 +45,14 @@ export class ExplosionPool {
   constructor(_scene: THREE.Scene) {
     injectCSS();
 
+    // Append to ui-overlay — same layer as HUD, guaranteed visible over canvas
+    const overlay = document.getElementById('ui-overlay') || document.body;
+
     for (let i = 0; i < MAX_EXPLOSIONS; i++) {
       const el = document.createElement('div');
       el.className = 'explosion-fx';
       el.style.display = 'none';
-      document.body.appendChild(el);
+      overlay.appendChild(el);
 
       this.slots.push({
         active: false,

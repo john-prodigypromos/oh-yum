@@ -108,6 +108,7 @@ export function createArenaState(
   // ── Systems ──
   const boltPool = new BoltPool(scene);
   const explosions = new ExplosionPool(scene);
+  explosions.setCamera(camera);
   const cockpitCam = new CockpitCamera(camera);
   const touchControls = new TouchControls3D();
   const mouseControls = new MouseControls();
@@ -203,17 +204,16 @@ export function updateArena(
     }
 
     // Visible impact flash at hit point
-    explosions.spawn(evt.bolt.mesh.position.clone(), 2);
+    explosions.spawn(evt.bolt.mesh.position.clone(), 40);
 
     // Big explosion on death — staggered multi-burst for dramatic effect
     if (!evt.target.alive) {
       const pos = evt.target.position.clone();
-      // Immediate large explosion
-      explosions.spawn(pos, 8);
-      // Staggered secondary explosions
-      explosions.spawn(pos.clone().add(new THREE.Vector3(4, 3, -2)), 6);
-      explosions.spawn(pos.clone().add(new THREE.Vector3(-3, -2, 3)), 5);
-      explosions.spawn(pos.clone().add(new THREE.Vector3(2, -1, -3)), 7);
+      // Massive death explosion — multiple overlapping bursts
+      explosions.spawn(pos, 200);
+      explosions.spawn(pos.clone().add(new THREE.Vector3(4, 3, -2)), 150);
+      explosions.spawn(pos.clone().add(new THREE.Vector3(-3, -2, 3)), 120);
+      explosions.spawn(pos.clone().add(new THREE.Vector3(2, -1, -3)), 160);
       state.sound.explosion();
       if (!evt.target.isPlayer) {
         state.score += 500;

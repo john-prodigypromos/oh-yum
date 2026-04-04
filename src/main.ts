@@ -305,8 +305,8 @@ function startArena(): void {
   hud = new HUD3D();
   crosshairEl.style.display = 'block';
 
-  // Test explosion to confirm they render
-  arena.explosions.spawn(arena.enemies[0]?.position.clone() ?? new THREE.Vector3(0, 0, 20), 6);
+  // Test explosion to confirm they render — should see orange fireball at arena start
+  arena.explosions.spawn(new THREE.Vector3(0, 0, 30), 150);
 }
 
 function showHighScoreOverlay(): void {

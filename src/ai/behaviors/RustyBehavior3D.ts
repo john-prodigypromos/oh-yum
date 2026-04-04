@@ -1,6 +1,6 @@
 // ── Rusty AI Behavior (3D) ───────────────────────────────
-// Enemy orbits in front of the player at close range.
-// Simple, predictable, always visible.
+// Enemy hovers DIRECTLY in front of the player, swaying gently.
+// Always visible. Like a target that shoots back.
 
 import * as THREE from 'three';
 import { Ship3D } from '../../entities/Ship3D';
@@ -8,14 +8,11 @@ import { AI } from '../../config';
 import type { AIBehavior3D } from '../AIBehavior3D';
 import type { ShipInput } from '../../systems/PhysicsSystem3D';
 
-const _toPlayer = new THREE.Vector3();
-const _forward = new THREE.Vector3();
-
 export class RustyBehavior3D implements AIBehavior3D {
   private fireRate: number;
-  private orbitAngle: number;
-  private orbitSpeed: number;
-  private orbitDist = 15; // very close orbit — always in your face
+  private swayTimer: number;
+  private swaySpeedX: number;
+  private swaySpeedY: number;
 
   constructor(
     _aimAccuracy: number = AI.RUSTY_AIM_ACCURACY,
@@ -23,8 +20,9 @@ export class RustyBehavior3D implements AIBehavior3D {
     _chaseRange: number = AI.RUSTY_CHASE_RANGE,
   ) {
     this.fireRate = fireRate;
-    this.orbitAngle = Math.random() * Math.PI * 2;
-    this.orbitSpeed = 0.08 + Math.random() * 0.07; // very slow orbit — easy to track
+    this.swayTimer = Math.random() * Math.PI * 2;
+    this.swaySpeedX = 0.4 + Math.random() * 0.3;
+    this.swaySpeedY = 0.3 + Math.random() * 0.2;
   }
 
   update(self: Ship3D, target: Ship3D, dt: number, now: number): ShipInput & { fire: boolean } {
@@ -32,38 +30,32 @@ export class RustyBehavior3D implements AIBehavior3D {
       return { yaw: 0, pitch: 0, roll: 0, thrust: 0, fire: false };
     }
 
-    // Orbit around the player
-    this.orbitAngle += this.orbitSpeed * dt;
+    this.swayTimer += dt;
 
-    // Desired position: orbit around player in the XZ plane
-    const desiredX = target.position.x + Math.cos(this.orbitAngle) * this.orbitDist;
-    const desiredY = target.position.y + Math.sin(this.orbitAngle * 0.5) * 5;
-    const desiredZ = target.position.z + Math.sin(this.orbitAngle) * this.orbitDist;
+    // Position: always 15 units ahead of where the player is looking
+    const playerForward = target.getForward();
+    const desiredX = target.position.x + playerForward.x * 15 + Math.sin(this.swayTimer * this.swaySpeedX) * 6;
+    const desiredY = target.position.y + playerForward.y * 15 + Math.sin(this.swayTimer * this.swaySpeedY) * 3;
+    const desiredZ = target.position.z + playerForward.z * 15 + Math.cos(this.swayTimer * this.swaySpeedX) * 6;
 
-    // Move toward desired position directly (override physics for reliability)
-    // Snap toward orbit position — fast lerp keeps them locked in view
-    const lerpRate = Math.min(1, dt * 3);
+    // Snap to position
+    const lerpRate = Math.min(1, dt * 4);
     self.position.x += (desiredX - self.position.x) * lerpRate;
     self.position.y += (desiredY - self.position.y) * lerpRate;
     self.position.z += (desiredZ - self.position.z) * lerpRate;
 
     // Always face the player
-    _toPlayer.subVectors(target.position, self.position).normalize();
-    if (_toPlayer.length() > 0.01) {
-      const lookQuat = new THREE.Quaternion();
-      const lookMat = new THREE.Matrix4();
-      lookMat.lookAt(self.position, target.position, new THREE.Vector3(0, 1, 0));
-      lookQuat.setFromRotationMatrix(lookMat);
-      self.group.quaternion.slerp(lookQuat, Math.min(1, dt * 5));
-    }
+    const lookMat = new THREE.Matrix4();
+    lookMat.lookAt(self.position, target.position, new THREE.Vector3(0, 1, 0));
+    const lookQuat = new THREE.Quaternion().setFromRotationMatrix(lookMat);
+    self.group.quaternion.slerp(lookQuat, Math.min(1, dt * 5));
 
-    // Fire periodically when alive
+    // Fire periodically
     let fire = false;
     if (now - self.lastFireTime >= this.fireRate) {
       fire = true;
     }
 
-    // Return zero input — we moved the ship directly above
     return { yaw: 0, pitch: 0, roll: 0, thrust: 0, fire };
   }
 }

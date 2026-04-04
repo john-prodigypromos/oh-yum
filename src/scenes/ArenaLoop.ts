@@ -143,7 +143,7 @@ export function updateArena(
     yaw: Math.max(-1, Math.min(1, mouse.yaw + touch.yaw)),
     pitch: Math.max(-1, Math.min(1, mouse.pitch + touch.pitch)),
     roll: 0,
-    thrust: 1, // always thrust forward
+    thrust: 0, // stationary — just aim and shoot, enemy comes to you
   };
 
   // ── Player weapons ──

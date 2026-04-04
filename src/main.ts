@@ -9,6 +9,8 @@ import { createPlayerMaterials, createEnemyMaterials, applyMaterials } from './s
 import { Ship3D } from './entities/Ship3D';
 import { CockpitCamera } from './camera/CockpitCamera';
 import { applyShipPhysics, checkShipCollision, resolveShipCollision, type ShipInput } from './systems/PhysicsSystem3D';
+import { BoltPool } from './entities/Bolt3D';
+import { tryFireWeapon } from './systems/WeaponSystem3D';
 import { SHIP } from './config';
 
 // ── Globals ──
@@ -18,6 +20,7 @@ let clock: THREE.Clock;
 let player: Ship3D;
 let enemy: Ship3D;
 let cockpitCam: CockpitCamera;
+let boltPool: BoltPool;
 
 // Input state
 const keys: Record<string, boolean> = {};
@@ -63,6 +66,9 @@ function init() {
   const crosshair = document.getElementById('crosshair');
   if (crosshair) crosshair.style.display = 'block';
 
+  // ── Bolt pool ──
+  boltPool = new BoltPool(bundle.scene);
+
   // ── Input ──
   window.addEventListener('keydown', (e) => { keys[e.code] = true; });
   window.addEventListener('keyup', (e) => { keys[e.code] = false; });
@@ -94,6 +100,12 @@ function animate() {
   // ── Physics ──
   applyShipPhysics(player, input, dt, now);
   applyShipPhysics(enemy, { yaw: 0, pitch: 0, roll: 0, thrust: 0 }, dt, now);
+
+  // ── Weapons ──
+  if (keys['Space']) {
+    tryFireWeapon(player, boltPool, now);
+  }
+  boltPool.update(dt);
 
   // ── Ship-to-ship collision ──
   if (checkShipCollision(player, enemy, SHIP.HITBOX_RADIUS)) {

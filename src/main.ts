@@ -8,7 +8,8 @@ import { createPlayerShipGeometry, createEnemyShipGeometry } from './ships/ShipG
 import { createPlayerMaterials, createEnemyMaterials, applyMaterials } from './ships/ShipMaterials';
 import { Ship3D } from './entities/Ship3D';
 import { CockpitCamera } from './camera/CockpitCamera';
-import { SHIP, PHYSICS } from './config';
+import { applyShipPhysics, checkShipCollision, resolveShipCollision, type ShipInput } from './systems/PhysicsSystem3D';
+import { SHIP } from './config';
 
 // ── Globals ──
 let bundle: RendererBundle;
@@ -25,17 +26,12 @@ function init() {
   const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
   if (!canvas) throw new Error('Missing #game-canvas element');
 
-  // ── Renderer ──
   bundle = createRenderer(canvas);
-
-  // ── Space environment ──
   env = createSpaceEnvironment(bundle.scene, bundle.renderer, bundle.camera);
 
   // ── Player ship ──
   const playerGeo = createPlayerShipGeometry();
-  const playerMats = createPlayerMaterials(0x88aacc);
-  applyMaterials(playerGeo, playerMats);
-  playerGeo.position.set(0, 0, 0);
+  applyMaterials(playerGeo, createPlayerMaterials(0x88aacc));
   bundle.scene.add(playerGeo);
 
   player = new Ship3D({
@@ -47,10 +43,9 @@ function init() {
     isPlayer: true,
   });
 
-  // ── Enemy ship (stationary target for now) ──
+  // ── Enemy ship ──
   const enemyGeo = createEnemyShipGeometry();
-  const enemyMats = createEnemyMaterials();
-  applyMaterials(enemyGeo, enemyMats);
+  applyMaterials(enemyGeo, createEnemyMaterials());
   enemyGeo.position.set(0, 0, 80);
   bundle.scene.add(enemyGeo);
 
@@ -63,10 +58,8 @@ function init() {
     isPlayer: false,
   });
 
-  // ── Cockpit camera ──
+  // ── Camera ──
   cockpitCam = new CockpitCamera(bundle.camera);
-
-  // Show crosshair
   const crosshair = document.getElementById('crosshair');
   if (crosshair) crosshair.style.display = 'block';
 
@@ -74,76 +67,47 @@ function init() {
   window.addEventListener('keydown', (e) => { keys[e.code] = true; });
   window.addEventListener('keyup', (e) => { keys[e.code] = false; });
 
-  // ── Clock ──
   clock = new THREE.Clock();
 
-  // ── Resize ──
   const onResize = () => handleRendererResize(bundle);
   window.addEventListener('resize', onResize);
   if (window.visualViewport) {
     window.visualViewport.addEventListener('resize', onResize);
   }
 
-  // ── Start loop ──
   animate();
 }
 
 function animate() {
   requestAnimationFrame(animate);
-  const dt = Math.min(clock.getDelta(), 0.05); // cap dt to prevent spiral
+  const dt = Math.min(clock.getDelta(), 0.05);
+  const now = performance.now();
 
-  // ── Read input ──
-  let yawInput = 0;
-  let pitchInput = 0;
-  let thrustInput = 0;
+  // ── Input ──
+  const input: ShipInput = {
+    yaw: (keys['ArrowLeft'] || keys['KeyA'] ? -1 : 0) + (keys['ArrowRight'] || keys['KeyD'] ? 1 : 0),
+    pitch: (keys['KeyQ'] ? 1 : 0) + (keys['KeyE'] ? -1 : 0),
+    roll: 0,
+    thrust: (keys['ArrowUp'] || keys['KeyW'] ? 1 : 0) + (keys['ArrowDown'] || keys['KeyS'] ? -1 : 0),
+  };
 
-  if (keys['ArrowLeft'] || keys['KeyA']) yawInput = -1;
-  if (keys['ArrowRight'] || keys['KeyD']) yawInput = 1;
-  if (keys['ArrowUp'] || keys['KeyW']) thrustInput = 1;
-  if (keys['ArrowDown'] || keys['KeyS']) thrustInput = -1;
-  if (keys['KeyQ']) pitchInput = 1;
-  if (keys['KeyE']) pitchInput = -1;
+  // ── Physics ──
+  applyShipPhysics(player, input, dt, now);
+  applyShipPhysics(enemy, { yaw: 0, pitch: 0, roll: 0, thrust: 0 }, dt, now);
 
-  // ── Apply rotation ──
-  const rotSpeed = PHYSICS.ROTATION_SPEED * player.rotationMult;
-  const yawQuat = new THREE.Quaternion().setFromAxisAngle(
-    new THREE.Vector3(0, 1, 0), -yawInput * rotSpeed * dt
-  );
-  const pitchQuat = new THREE.Quaternion().setFromAxisAngle(
-    new THREE.Vector3(1, 0, 0), pitchInput * rotSpeed * 0.7 * dt
-  );
-  player.group.quaternion.multiply(yawQuat).multiply(pitchQuat);
-
-  // ── Apply thrust ──
-  if (thrustInput !== 0) {
-    const forward = player.getForward();
-    const thrust = PHYSICS.THRUST * player.speedMult * thrustInput;
-    player.velocity.addScaledVector(forward, thrust * dt);
+  // ── Ship-to-ship collision ──
+  if (checkShipCollision(player, enemy, SHIP.HITBOX_RADIUS)) {
+    resolveShipCollision(player, enemy, SHIP.HITBOX_RADIUS, now);
+    cockpitCam.shake(0.5);
   }
-
-  // ── Drag (exponential decay) ──
-  const dragFactor = Math.exp(-Math.log(2) / PHYSICS.DRAG_HALF_LIFE * dt);
-  player.velocity.multiplyScalar(dragFactor);
-
-  // ── Clamp velocity ──
-  if (player.velocity.length() > PHYSICS.MAX_VELOCITY) {
-    player.velocity.setLength(PHYSICS.MAX_VELOCITY);
-  }
-
-  // ── Move ──
-  player.position.addScaledVector(player.velocity, dt);
-
-  // ── Shield regen ──
-  player.updateShieldRegen(dt);
 
   // ── Camera ──
-  cockpitCam.update(player, dt, yawInput);
+  cockpitCam.update(player, dt, input.yaw);
 
   // ── Render ──
   bundle.composer.render();
 }
 
-// ── Bootstrap ──
 if (document.readyState === 'complete') {
   init();
 } else {

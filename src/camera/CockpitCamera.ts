@@ -40,10 +40,7 @@ export class CockpitCamera {
     this._lookTarget.copy(player.position).addScaledVector(forward, 20);
     this.camera.lookAt(this._lookTarget);
 
-    // ── Roll on turns ──
-    this.targetRoll = -yawInput * 0.15; // subtle roll on turns
-    this.currentRoll = THREE.MathUtils.lerp(this.currentRoll, this.targetRoll, Math.min(1, dt * 5));
-    this.camera.rotation.z = this.currentRoll;
+    // No roll — keep horizon stable for cockpit feel
 
     // ── Screen shake ──
     if (this.shakeIntensity > 0.01) {

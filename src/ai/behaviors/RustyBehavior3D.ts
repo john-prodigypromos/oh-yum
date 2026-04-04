@@ -70,12 +70,13 @@ export class RustyBehavior3D implements AIBehavior3D {
       pitch = Math.max(-1, Math.min(1, pitch));
     }
 
-    // Thrust — chase when facing roughly toward target and within range
-    if (distance > 30 && angleDiff < Math.PI * 0.5) {
+    // Thrust — aggressively close distance, stay in dogfight range
+    if (distance > 15 && angleDiff < Math.PI * 0.7) {
       thrust = 1;
-    } else if (distance < 15) {
-      // Too close — back off slightly
-      thrust = -0.5;
+    } else if (distance < 8) {
+      thrust = -0.3;
+    } else {
+      thrust = 0.5; // always creeping closer
     }
 
     // Fire — when roughly aimed at target and within chase range

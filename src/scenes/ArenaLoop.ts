@@ -73,12 +73,12 @@ export function createArenaState(
     const enemyGeo = createEnemyShipGeometry();
     applyMaterials(enemyGeo, createEnemyMaterials());
 
-    // Spawn in front of player, close enough to see
-    const angle = (i / levelConfig.enemyCount) * Math.PI * 0.6 - Math.PI * 0.3;
-    const dist = 60 + Math.random() * 40;
+    // Spawn very close in front of player — must be immediately visible
+    const angle = (i / levelConfig.enemyCount) * Math.PI * 0.4 - Math.PI * 0.2;
+    const dist = 25 + Math.random() * 15;
     enemyGeo.position.set(
       Math.sin(angle) * dist,
-      (Math.random() - 0.5) * 20,
+      (Math.random() - 0.5) * 5,
       Math.cos(angle) * dist, // +Z = forward (ship faces +Z)
     );
     scene.add(enemyGeo);

@@ -3,9 +3,11 @@
 
 import * as THREE from 'three';
 import { createRenderer, handleRendererResize, type RendererBundle } from './renderer/SetupRenderer';
+import { createSpaceEnvironment, type SpaceEnvironment } from './renderer/Environment';
 
 // ── Globals ──
 let bundle: RendererBundle;
+let env: SpaceEnvironment;
 let clock: THREE.Clock;
 
 function init() {
@@ -15,26 +17,26 @@ function init() {
   // ── Create renderer + scene + camera + composer ──
   bundle = createRenderer(canvas);
 
-  // ── Temporary test content (verifies renderer + bloom) ──
-  const testGeo = new THREE.BoxGeometry(2, 2, 2);
-  const testMat = new THREE.MeshStandardMaterial({
+  // ── Space environment (stars, nebulae, lighting, envMap) ──
+  env = createSpaceEnvironment(bundle.scene, bundle.renderer, bundle.camera);
+
+  // ── Test emissive object to verify bloom + PBR reflections ──
+  const testGeo = new THREE.SphereGeometry(3, 32, 32);
+  const testMat = new THREE.MeshPhysicalMaterial({
     color: 0x0088ff,
     emissive: 0x0044ff,
-    emissiveIntensity: 2.0,
-    metalness: 0.9,
-    roughness: 0.3,
+    emissiveIntensity: 1.5,
+    metalness: 0.95,
+    roughness: 0.2,
+    clearcoat: 0.5,
+    clearcoatRoughness: 0.1,
   });
-  const testCube = new THREE.Mesh(testGeo, testMat);
-  bundle.scene.add(testCube);
+  const testSphere = new THREE.Mesh(testGeo, testMat);
+  testSphere.name = 'test-sphere';
+  bundle.scene.add(testSphere);
 
-  // Lighting
-  const sun = new THREE.DirectionalLight(0xfff5e6, 3);
-  sun.position.set(5, 10, 7);
-  bundle.scene.add(sun);
-  bundle.scene.add(new THREE.AmbientLight(0x222244, 0.3));
-
-  // Position camera to see the cube
-  bundle.camera.position.set(0, 2, 10);
+  // Position camera to see the sphere + environment
+  bundle.camera.position.set(0, 3, 15);
   bundle.camera.lookAt(0, 0, 0);
 
   // ── Clock ──
@@ -55,11 +57,10 @@ function animate() {
   requestAnimationFrame(animate);
   const dt = clock.getDelta();
 
-  // Spin test cube (temporary)
-  const cube = bundle.scene.children.find(c => c instanceof THREE.Mesh) as THREE.Mesh | undefined;
-  if (cube) {
-    cube.rotation.x += dt * 0.5;
-    cube.rotation.y += dt * 0.8;
+  // Slow-rotate test sphere
+  const sphere = bundle.scene.getObjectByName('test-sphere');
+  if (sphere) {
+    sphere.rotation.y += dt * 0.3;
   }
 
   bundle.composer.render();
@@ -72,4 +73,4 @@ if (document.readyState === 'complete') {
   window.addEventListener('load', init);
 }
 
-export { bundle };
+export { bundle, env };

@@ -310,15 +310,48 @@ function showHighScoreOverlay(): void {
   const panel = createOverlayPanel();
   const finalScore = arena?.score ?? totalScore;
 
+  // Pilot portrait — victory celebration
+  const pilotImg = document.createElement('img');
+  pilotImg.src = `/portraits/${currentCharacter}.jpg`;
+  pilotImg.alt = currentCharacter;
+  pilotImg.style.cssText = `
+    width:160px;height:160px;border-radius:50%;object-fit:cover;
+    border:4px solid #ffcc00;margin-bottom:16px;
+    animation: heroGlow 1.5s ease-in-out infinite alternate;
+  `;
+  panel.appendChild(pilotImg);
+
   const title = document.createElement('div');
-  title.textContent = 'VICTORY!';
-  title.style.cssText = 'font-size:48px;font-weight:bold;color:#ffcc00;letter-spacing:4px;margin-bottom:16px;';
+  title.textContent = 'YOU SAVED HUMANITY FROM EVIL!';
+  title.style.cssText = `
+    font-size:32px;font-weight:bold;color:#ffcc00;letter-spacing:3px;
+    margin-bottom:8px;text-align:center;
+    text-shadow:0 0 20px rgba(255,204,0,0.5);
+    animation: heroGlow 1.5s ease-in-out infinite alternate;
+  `;
   panel.appendChild(title);
+
+  const subtitle = document.createElement('div');
+  subtitle.textContent = 'GREAT JOB!';
+  subtitle.style.cssText = 'font-size:22px;color:#44ff44;margin-bottom:8px;font-weight:bold;letter-spacing:4px;';
+  panel.appendChild(subtitle);
 
   const scoreText = document.createElement('div');
   scoreText.textContent = `FINAL SCORE: ${finalScore.toLocaleString()}`;
-  scoreText.style.cssText = 'font-size:24px;margin-bottom:24px;';
+  scoreText.style.cssText = 'font-size:20px;margin-bottom:24px;color:#fff;';
   panel.appendChild(scoreText);
+
+  // Inject glow animation
+  const style = document.createElement('style');
+  style.textContent = `
+    @keyframes heroGlow { from { filter:brightness(1); } to { filter:brightness(1.2); } }
+  `;
+  document.head.appendChild(style);
+
+  // Play yay sound
+  if (arena?.sound) {
+    arena.sound.yay();
+  }
 
   // Name entry
   const nameLabel = document.createElement('div');

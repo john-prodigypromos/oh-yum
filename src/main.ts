@@ -366,14 +366,34 @@ function showHighScoreOverlay(): void {
 function showGameOverOverlay(): void {
   const panel = createOverlayPanel();
 
-  const title = document.createElement('div');
-  title.textContent = 'GAME OVER';
-  title.style.cssText = 'font-size:48px;font-weight:bold;color:#ff4444;letter-spacing:4px;margin-bottom:16px;';
-  panel.appendChild(title);
+  // Villain portrait — big, menacing, centered
+  const villainImg = document.createElement('img');
+  villainImg.src = '/portraits/villain.jpg';
+  villainImg.alt = 'Villain';
+  villainImg.style.cssText = `
+    width:180px;height:180px;border-radius:50%;object-fit:cover;
+    border:4px solid #ff4444;margin-bottom:16px;
+    animation: villainBounce 0.5s ease-out;
+  `;
+  panel.appendChild(villainImg);
+
+  const taunt = document.createElement('div');
+  taunt.textContent = 'TRY AGAIN LOSER!';
+  taunt.style.cssText = `
+    font-size:42px;font-weight:bold;color:#ff4444;letter-spacing:3px;
+    margin-bottom:8px;text-shadow:0 0 20px rgba(255,68,68,0.5);
+    animation: villainBounce 0.5s ease-out;
+  `;
+  panel.appendChild(taunt);
+
+  const subtitle = document.createElement('div');
+  subtitle.textContent = 'MWAHAHAHA!';
+  subtitle.style.cssText = 'font-size:20px;color:#ff8844;margin-bottom:8px;font-style:italic;letter-spacing:4px;';
+  panel.appendChild(subtitle);
 
   const scoreText = document.createElement('div');
   scoreText.textContent = `SCORE: ${(arena?.score ?? 0).toLocaleString()}`;
-  scoreText.style.cssText = 'font-size:24px;margin-bottom:24px;';
+  scoreText.style.cssText = 'font-size:20px;margin-bottom:28px;color:#aaa;';
   panel.appendChild(scoreText);
 
   const retryBtn = document.createElement('button');
@@ -387,6 +407,18 @@ function showGameOverOverlay(): void {
     sceneManager.transition('title');
   });
   panel.appendChild(retryBtn);
+
+  // Inject animation
+  const style = document.createElement('style');
+  style.textContent = `
+    @keyframes villainBounce { from { transform:scale(1.3);opacity:0; } to { transform:scale(1);opacity:1; } }
+  `;
+  document.head.appendChild(style);
+
+  // Play evil laugh sound
+  if (arena?.sound) {
+    arena.sound.evilLaugh();
+  }
 }
 
 // ── Animation Loop ──

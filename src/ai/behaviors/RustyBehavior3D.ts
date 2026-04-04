@@ -15,7 +15,7 @@ export class RustyBehavior3D implements AIBehavior3D {
   private fireRate: number;
   private orbitAngle: number;
   private orbitSpeed: number;
-  private orbitDist = 25; // stay this far from player
+  private orbitDist = 18; // close orbit — always visible
 
   constructor(
     _aimAccuracy: number = AI.RUSTY_AIM_ACCURACY,
@@ -24,7 +24,7 @@ export class RustyBehavior3D implements AIBehavior3D {
   ) {
     this.fireRate = fireRate;
     this.orbitAngle = Math.random() * Math.PI * 2;
-    this.orbitSpeed = 0.3 + Math.random() * 0.3;
+    this.orbitSpeed = 0.15 + Math.random() * 0.15; // slow orbit — easy to track
   }
 
   update(self: Ship3D, target: Ship3D, dt: number, now: number): ShipInput & { fire: boolean } {
@@ -41,10 +41,11 @@ export class RustyBehavior3D implements AIBehavior3D {
     const desiredZ = target.position.z + Math.sin(this.orbitAngle) * this.orbitDist;
 
     // Move toward desired position directly (override physics for reliability)
-    const moveSpeed = 30 * dt;
-    self.position.x += (desiredX - self.position.x) * Math.min(1, moveSpeed * 0.1);
-    self.position.y += (desiredY - self.position.y) * Math.min(1, moveSpeed * 0.1);
-    self.position.z += (desiredZ - self.position.z) * Math.min(1, moveSpeed * 0.1);
+    // Snap toward orbit position — fast lerp keeps them locked in view
+    const lerpRate = Math.min(1, dt * 3);
+    self.position.x += (desiredX - self.position.x) * lerpRate;
+    self.position.y += (desiredY - self.position.y) * lerpRate;
+    self.position.z += (desiredZ - self.position.z) * lerpRate;
 
     // Always face the player
     _toPlayer.subVectors(target.position, self.position).normalize();

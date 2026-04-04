@@ -61,6 +61,9 @@ export class TouchControls3D {
 
     if (this.enabled) {
       this.setupTouch();
+    } else {
+      // On desktop, hide the touch overlay entirely so it doesn't block mouse
+      this.canvas.style.display = 'none';
     }
 
     window.addEventListener('resize', () => this.handleResize());

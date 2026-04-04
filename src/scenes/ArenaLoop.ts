@@ -15,6 +15,7 @@ import { RustyBehavior3D } from '../ai/behaviors/RustyBehavior3D';
 import { createPlayerShipGeometry, createEnemyShipGeometry } from '../ships/ShipGeometry';
 import { createPlayerMaterials, createEnemyMaterials, applyMaterials } from '../ships/ShipMaterials';
 import { TouchControls3D } from '../ui/TouchControls3D';
+import { MouseControls } from '../ui/MouseControls';
 import { SoundSystem } from '../systems/SoundSystem';
 import { SHIP, AI } from '../config';
 import { getCurrentLevel, type LevelConfig } from '../state/LevelState';
@@ -28,6 +29,7 @@ export interface ArenaState {
   explosions: ExplosionPool;
   cockpitCam: CockpitCamera;
   touchControls: TouchControls3D;
+  mouseControls: MouseControls;
   sound: SoundSystem;
   score: number;
   levelConfig: LevelConfig;
@@ -106,13 +108,14 @@ export function createArenaState(
   const explosions = new ExplosionPool(scene);
   const cockpitCam = new CockpitCamera(camera);
   const touchControls = new TouchControls3D();
+  const mouseControls = new MouseControls();
   const sound = new SoundSystem();
   sound.init();
   sound.startMusic();
 
   return {
     player, enemies, enemyAIs,
-    boltPool, explosions, cockpitCam, touchControls, sound,
+    boltPool, explosions, cockpitCam, touchControls, mouseControls, sound,
     score: previousScore,
     levelConfig,
     gameOver: false,
@@ -128,29 +131,30 @@ export function updateArena(
 ): void {
   if (state.gameOver || state.victory) return;
 
-  const { player, enemies, enemyAIs, boltPool, explosions, cockpitCam, touchControls } = state;
+  const { player, enemies, enemyAIs, boltPool, explosions, cockpitCam, touchControls, mouseControls } = state;
 
-  // ── Player input (keyboard + touch merged) ──
+  // ── Player input ──
+  // Desktop: mouse/trackpad aims, space fires
+  // Mobile: touch joystick aims, fire button fires
+  const mouse = mouseControls.getInput();
   const touch = touchControls.getInput();
-  const kbYaw = (keys['ArrowLeft'] ? -1 : 0) + (keys['ArrowRight'] ? 1 : 0);
-  const kbPitch = (keys['ArrowUp'] ? 1 : 0) + (keys['ArrowDown'] ? -1 : 0);
-  const kbThrust = 1; // always thrust forward
 
   const input: ShipInput = {
-    yaw: Math.max(-1, Math.min(1, kbYaw + touch.yaw)),
-    pitch: Math.max(-1, Math.min(1, kbPitch + touch.pitch)),
+    yaw: Math.max(-1, Math.min(1, mouse.yaw + touch.yaw)),
+    pitch: Math.max(-1, Math.min(1, mouse.pitch + touch.pitch)),
     roll: 0,
-    thrust: Math.max(-1, Math.min(1, kbThrust + touch.thrust)),
+    thrust: 1, // always thrust forward
   };
 
   // ── Player weapons ──
-  if (keys['Space'] || touch.fire) {
+  // Desktop: space bar or left click | Mobile: touch fire button
+  if (keys['Space'] || mouse.fire || touch.fire) {
     if (tryFireWeapon(player, boltPool, now)) {
       state.sound.playerShoot();
     }
   }
 
-  // Draw touch controls
+  // Draw touch controls (only visible on touch devices)
   touchControls.draw();
 
   // ── Enemy AI + weapons ──

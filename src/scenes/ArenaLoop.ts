@@ -141,10 +141,14 @@ export function updateArena(
 
   const input: ShipInput = {
     yaw: Math.max(-1, Math.min(1, mouse.yaw + touch.yaw)),
-    pitch: Math.max(-1, Math.min(1, mouse.pitch + touch.pitch)),
+    pitch: touch.pitch, // touch only for pitch (mobile)
     roll: 0,
-    thrust: 0, // stationary — just aim and shoot, enemy comes to you
+    thrust: 0,
   };
+
+  // Trackpad up/down moves ship vertically (not pitch rotation)
+  const vertSpeed = 60;
+  player.position.y += mouse.verticalMove * vertSpeed * dt;
 
   // ── Player weapons ──
   // Desktop: space bar only | Mobile: touch fire button

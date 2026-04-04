@@ -21,8 +21,8 @@ export class RustyBehavior3D implements AIBehavior3D {
   ) {
     this.fireRate = fireRate;
     this.swayTimer = Math.random() * Math.PI * 2;
-    this.swaySpeedX = 0.4 + Math.random() * 0.3;
-    this.swaySpeedY = 0.3 + Math.random() * 0.2;
+    this.swaySpeedX = 0.7 + Math.random() * 0.4;
+    this.swaySpeedY = 0.5 + Math.random() * 0.3;
   }
 
   update(self: Ship3D, target: Ship3D, dt: number, now: number): ShipInput & { fire: boolean } {

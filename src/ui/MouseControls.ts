@@ -4,8 +4,8 @@
 // Left click or Space fires.
 
 export interface MouseInput {
-  yaw: number;    // -1 to 1
-  pitch: number;  // -1 to 1
+  yaw: number;      // -1 to 1 (left/right turn)
+  verticalMove: number; // -1 to 1 (up/down movement)
 }
 
 export class MouseControls {
@@ -31,7 +31,7 @@ export class MouseControls {
   }
 
   getInput(): MouseInput {
-    if (!this.enabled) return { yaw: 0, pitch: 0 };
+    if (!this.enabled) return { yaw: 0, verticalMove: 0 };
 
     const w = window.innerWidth;
     const h = window.innerHeight;
@@ -42,15 +42,14 @@ export class MouseControls {
     const rawX = (this.mouseX - cx) / (cx * this.sensitivity);
     const rawY = (this.mouseY - cy) / (cy * this.sensitivity);
 
-    // Apply dead zone
     const yaw = Math.abs(rawX) > this.deadZone
       ? Math.max(-1, Math.min(1, rawX))
       : 0;
-    const pitch = Math.abs(rawY) > this.deadZone
-      ? Math.max(-1, Math.min(1, -rawY)) // inverted: mouse up = pitch up
+    const verticalMove = Math.abs(rawY) > this.deadZone
+      ? Math.max(-1, Math.min(1, -rawY)) // mouse up = ship goes up
       : 0;
 
-    return { yaw, pitch };
+    return { yaw, verticalMove };
   }
 
   isEnabled(): boolean { return this.enabled; }

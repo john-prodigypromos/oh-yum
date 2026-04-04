@@ -15,6 +15,7 @@ import { RustyBehavior3D } from '../ai/behaviors/RustyBehavior3D';
 import { createPlayerShipGeometry, createEnemyShipGeometry } from '../ships/ShipGeometry';
 import { createPlayerMaterials, createEnemyMaterials, applyMaterials } from '../ships/ShipMaterials';
 import { TouchControls3D } from '../ui/TouchControls3D';
+import { SoundSystem } from '../systems/SoundSystem';
 import { SHIP, AI } from '../config';
 import { getCurrentLevel, type LevelConfig } from '../state/LevelState';
 import { DIFFICULTY, currentDifficulty } from '../state/Difficulty';
@@ -27,6 +28,7 @@ export interface ArenaState {
   explosions: ExplosionPool;
   cockpitCam: CockpitCamera;
   touchControls: TouchControls3D;
+  sound: SoundSystem;
   score: number;
   levelConfig: LevelConfig;
   gameOver: boolean;
@@ -99,10 +101,13 @@ export function createArenaState(
   const explosions = new ExplosionPool(scene);
   const cockpitCam = new CockpitCamera(camera);
   const touchControls = new TouchControls3D();
+  const sound = new SoundSystem();
+  sound.init();
+  sound.startMusic();
 
   return {
     player, enemies, enemyAIs,
-    boltPool, explosions, cockpitCam, touchControls,
+    boltPool, explosions, cockpitCam, touchControls, sound,
     score: previousScore,
     levelConfig,
     gameOver: false,
@@ -135,7 +140,9 @@ export function updateArena(
 
   // ── Player weapons ──
   if (keys['Space'] || touch.fire) {
-    tryFireWeapon(player, boltPool, now);
+    if (tryFireWeapon(player, boltPool, now)) {
+      state.sound.playerShoot();
+    }
   }
 
   // Draw touch controls
@@ -148,7 +155,9 @@ export function updateArena(
 
     const aiInput = enemyAIs[i].update(enemy, player, dt, now);
     if (aiInput.fire) {
-      tryFireWeapon(enemy, boltPool, now);
+      if (tryFireWeapon(enemy, boltPool, now)) {
+        state.sound.enemyShoot();
+      }
     }
     applyShipPhysics(enemy, aiInput, dt, now);
   }
@@ -169,9 +178,11 @@ export function updateArena(
       state.score += evt.damage * 10;
     }
 
-    // Camera shake on player hit
+    // Sound + camera shake on player hit
     if (evt.target === player) {
       cockpitCam.shake(evt.shieldHit ? 0.3 : 0.6);
+      if (evt.shieldHit) state.sound.shieldHit();
+      else state.sound.hullHit();
     }
 
     // Small explosion at impact
@@ -180,9 +191,9 @@ export function updateArena(
     // Big explosion on death
     if (!evt.target.alive) {
       explosions.spawn(evt.target.position.clone());
+      state.sound.explosion();
       if (!evt.target.isPlayer) {
         state.score += 500; // kill bonus
-        // Hide dead enemy
         evt.target.group.visible = false;
       }
     }
@@ -194,6 +205,7 @@ export function updateArena(
     if (checkShipCollision(player, enemy, SHIP.HITBOX_RADIUS)) {
       resolveShipCollision(player, enemy, SHIP.HITBOX_RADIUS, now);
       cockpitCam.shake(0.5);
+      state.sound.shipCollision();
     }
   }
 
@@ -204,13 +216,17 @@ export function updateArena(
   cockpitCam.update(player, dt, input.yaw);
 
   // ── Win/Lose conditions ──
-  if (!player.alive) {
+  if (!player.alive && !state.gameOver) {
     state.gameOver = true;
+    state.sound.stopMusic();
+    state.sound.defeat();
   }
 
   const allEnemiesDead = enemies.every(e => !e.alive);
-  if (allEnemiesDead) {
+  if (allEnemiesDead && !state.victory) {
     state.victory = true;
+    state.sound.stopMusic();
+    state.sound.victory();
   }
 }
 

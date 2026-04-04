@@ -147,8 +147,8 @@ export function updateArena(
   };
 
   // ── Player weapons ──
-  // Desktop: space bar or left click | Mobile: touch fire button
-  if (keys['Space'] || mouse.fire || touch.fire) {
+  // Desktop: space bar only | Mobile: touch fire button
+  if (keys['Space'] || touch.fire) {
     if (tryFireWeapon(player, boltPool, now)) {
       state.sound.playerShoot();
     }

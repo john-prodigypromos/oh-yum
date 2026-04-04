@@ -13,10 +13,10 @@ export const ARENA = {
 
 export const PHYSICS = {
   FIXED_TIMESTEP: 1000 / 60,
-  THRUST: 150,  // reduced for cockpit feel — not too fast
+  THRUST: 80,  // gentle forward drift — enemies can keep up
   ROTATION_SPEED: Math.PI * 0.4,  // slower turning for cockpit feel
   DRAG_HALF_LIFE: 1.5,
-  MAX_VELOCITY: 200,  // slower top speed for better combat tracking
+  MAX_VELOCITY: 100,  // slow enough that enemies stay in view
   WALL_BOUNCE_FACTOR: 0.6,
   WALL_DAMAGE: 2,
   COLLISION_DAMAGE_MULTIPLIER: 0.1,

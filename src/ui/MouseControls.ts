@@ -6,13 +6,11 @@
 export interface MouseInput {
   yaw: number;    // -1 to 1
   pitch: number;  // -1 to 1
-  fire: boolean;
 }
 
 export class MouseControls {
   private mouseX = 0;
   private mouseY = 0;
-  private mouseDown = false;
   private enabled: boolean;
 
   // Dead zone in center (fraction of screen half-width/height)
@@ -29,22 +27,11 @@ export class MouseControls {
         this.mouseX = e.clientX;
         this.mouseY = e.clientY;
       });
-
-      window.addEventListener('mousedown', (e) => {
-        if (e.button === 0) this.mouseDown = true;
-      });
-
-      window.addEventListener('mouseup', (e) => {
-        if (e.button === 0) this.mouseDown = false;
-      });
-
-      // Prevent context menu on right-click in game
-      window.addEventListener('contextmenu', (e) => e.preventDefault());
     }
   }
 
   getInput(): MouseInput {
-    if (!this.enabled) return { yaw: 0, pitch: 0, fire: false };
+    if (!this.enabled) return { yaw: 0, pitch: 0 };
 
     const w = window.innerWidth;
     const h = window.innerHeight;
@@ -63,7 +50,7 @@ export class MouseControls {
       ? Math.max(-1, Math.min(1, -rawY)) // inverted: mouse up = pitch up
       : 0;
 
-    return { yaw, pitch, fire: this.mouseDown };
+    return { yaw, pitch };
   }
 
   isEnabled(): boolean { return this.enabled; }

@@ -15,7 +15,7 @@ export class RustyBehavior3D implements AIBehavior3D {
   private fireRate: number;
   private orbitAngle: number;
   private orbitSpeed: number;
-  private orbitDist = 18; // close orbit — always visible
+  private orbitDist = 15; // very close orbit — always in your face
 
   constructor(
     _aimAccuracy: number = AI.RUSTY_AIM_ACCURACY,
@@ -24,7 +24,7 @@ export class RustyBehavior3D implements AIBehavior3D {
   ) {
     this.fireRate = fireRate;
     this.orbitAngle = Math.random() * Math.PI * 2;
-    this.orbitSpeed = 0.15 + Math.random() * 0.15; // slow orbit — easy to track
+    this.orbitSpeed = 0.08 + Math.random() * 0.07; // very slow orbit — easy to track
   }
 
   update(self: Ship3D, target: Ship3D, dt: number, now: number): ShipInput & { fire: boolean } {

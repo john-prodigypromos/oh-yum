@@ -34,7 +34,9 @@ export interface ArenaState {
   score: number;
   levelConfig: LevelConfig;
   gameOver: boolean;
+  gameOverTime: number;
   victory: boolean;
+  victoryTime: number;
 }
 
 export function createArenaState(
@@ -119,7 +121,9 @@ export function createArenaState(
     score: previousScore,
     levelConfig,
     gameOver: false,
+    gameOverTime: 0,
     victory: false,
+    victoryTime: 0,
   };
 }
 
@@ -231,9 +235,10 @@ export function updateArena(
   // ── Camera ──
   cockpitCam.update(player, dt, input.yaw);
 
-  // ── Win/Lose conditions ──
+  // ── Win/Lose conditions (with delay for explosions to play) ──
   if (!player.alive && !state.gameOver) {
     state.gameOver = true;
+    state.gameOverTime = now;
     state.sound.stopMusic();
     state.sound.defeat();
   }
@@ -241,6 +246,7 @@ export function updateArena(
   const allEnemiesDead = enemies.every(e => !e.alive);
   if (allEnemiesDead && !state.victory) {
     state.victory = true;
+    state.victoryTime = now;
     state.sound.stopMusic();
     state.sound.victory();
   }

@@ -469,8 +469,10 @@ function animate() {
       hud.update(arena.player, arena.enemies, arena.score, currentLevelIndex + 1, bundle.camera);
     }
 
-    // Check win/lose
-    if (arena.victory) {
+    // Check win/lose — wait 2.5s for explosions to play out
+    const TRANSITION_DELAY = 2500;
+
+    if (arena.victory && now - arena.victoryTime > TRANSITION_DELAY) {
       const hasNext = advanceLevel(
         arena.player.hull,
         arena.player.maxHull,
@@ -482,7 +484,7 @@ function animate() {
       } else {
         sceneManager.transition('highScore');
       }
-    } else if (arena.gameOver) {
+    } else if (arena.gameOver && now - arena.gameOverTime > TRANSITION_DELAY) {
       sceneManager.transition('gameOver');
     }
   } else if (sceneManager.current === 'title') {

@@ -207,11 +207,25 @@ export function updateArena(
         state.score += evt.damage * 10;
       }
 
-      // Sound + camera shake on player hit
+      // Sound + camera shake + screen flash on player hit
       if (evt.target === player) {
-        cockpitCam.shake(evt.shieldHit ? 0.3 : 0.6);
+        cockpitCam.shake(evt.shieldHit ? 0.8 : 1.5);
         if (evt.shieldHit) state.sound.shieldHit();
         else state.sound.hullHit();
+
+        // Full-screen damage flash
+        const flash = document.createElement('div');
+        const color = evt.shieldHit
+          ? 'rgba(0, 150, 255, 0.25)'   // blue for shield
+          : 'rgba(255, 100, 0, 0.3)';    // orange for hull
+        flash.style.cssText = `
+          position:fixed;top:0;left:0;width:100%;height:100%;
+          background:${color};z-index:40;pointer-events:none;
+          transition:opacity 0.4s ease-out;
+        `;
+        document.getElementById('ui-overlay')!.appendChild(flash);
+        requestAnimationFrame(() => { flash.style.opacity = '0'; });
+        setTimeout(() => flash.remove(), 500);
       }
 
       // Project enemy position to screen for explosions

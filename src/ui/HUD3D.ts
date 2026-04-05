@@ -68,9 +68,14 @@ export class HUD3D {
     hullContainer.appendChild(this.hullBar);
     topLeft.appendChild(hullContainer);
 
-    // Pilot portrait
+    // Prodigy logo + Pilot portrait
     const pilotRow = document.createElement('div');
     pilotRow.style.cssText = 'display:flex;align-items:center;gap:8px;margin-top:8px;';
+    const prodigyLogo = document.createElement('img');
+    prodigyLogo.src = '/portraits/prodigy-logo.png';
+    prodigyLogo.alt = 'Prodigy';
+    prodigyLogo.style.cssText = 'width:24px;height:24px;object-fit:contain;';
+    pilotRow.appendChild(prodigyLogo);
     const pilotImg = document.createElement('img');
     pilotImg.src = `/portraits/${currentCharacter}.jpg`;
     pilotImg.alt = currentCharacter;

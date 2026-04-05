@@ -91,174 +91,114 @@ export function createPlayerShipGeometry(): THREE.Group {
   return group;
 }
 
-/** Enemy ship — detailed aggressive fighter with layered hull, weapon pods, and twin engines. */
+/** Enemy ship — solid, compact fighter. All parts overlap hull for tight look. */
 export function createEnemyShipGeometry(): THREE.Group {
   const group = new THREE.Group();
 
-  // ── Main hull — flattened angular body ──
-  const hullGeo = new THREE.SphereGeometry(1.4, 16, 12);
-  hullGeo.scale(1.2, 0.5, 1.8);
-  const hull = new THREE.Mesh(hullGeo);
-  hull.name = 'hull';
-  group.add(hull);
+  // ── Central fuselage — solid core everything attaches to ──
+  const fuseGeo = new THREE.BoxGeometry(2.0, 0.7, 3.5);
+  const fuse = new THREE.Mesh(fuseGeo);
+  fuse.name = 'hull';
+  group.add(fuse);
 
-  // ── Upper armor plate ──
-  const armorGeo = new THREE.BoxGeometry(1.6, 0.15, 2.4);
-  const armor = new THREE.Mesh(armorGeo);
-  armor.name = 'armor';
-  armor.position.set(0, 0.4, 0);
-  group.add(armor);
+  // ── Nose — tapered front, overlaps fuselage ──
+  const noseGeo = new THREE.ConeGeometry(0.8, 2.0, 4);
+  noseGeo.rotateX(-Math.PI / 2);
+  noseGeo.rotateZ(Math.PI / 4); // diamond profile
+  const nose = new THREE.Mesh(noseGeo);
+  nose.name = 'hull';
+  nose.position.z = 2.6;
+  group.add(nose);
 
-  // ── Forward spike / cannon barrel ──
-  const spikeGeo = new THREE.CylinderGeometry(0.12, 0.25, 2.5, 8);
-  spikeGeo.rotateX(-Math.PI / 2);
-  const spike = new THREE.Mesh(spikeGeo);
-  spike.name = 'spike';
-  spike.position.z = 2.8;
-  group.add(spike);
+  // ── Cockpit slit — inset into top of fuselage ──
+  const cockpitGeo = new THREE.BoxGeometry(0.8, 0.08, 0.6);
+  const cockpit = new THREE.Mesh(cockpitGeo);
+  cockpit.name = 'cockpit';
+  cockpit.position.set(0, 0.36, 0.8);
+  group.add(cockpit);
 
-  // ── Cannon housing ──
-  const cannonHousingGeo = new THREE.BoxGeometry(0.6, 0.4, 1.0);
-  const cannonHousing = new THREE.Mesh(cannonHousingGeo);
-  cannonHousing.name = 'hull';
-  cannonHousing.position.set(0, 0, 1.8);
-  group.add(cannonHousing);
-
-  // ── Cockpit viewport (dark slit) ──
-  const viewportGeo = new THREE.BoxGeometry(1.0, 0.15, 0.4);
-  const viewport = new THREE.Mesh(viewportGeo);
-  viewport.name = 'cockpit';
-  viewport.position.set(0, 0.45, 0.8);
-  group.add(viewport);
-
-  // ── Main wings — wide, angular, swept back ──
-  const wingShape = new THREE.Shape();
-  wingShape.moveTo(0, 0);
-  wingShape.lineTo(5, -0.6);
-  wingShape.lineTo(5.5, -1.2);
-  wingShape.lineTo(4, -1.8);
-  wingShape.lineTo(1, -0.8);
-  wingShape.lineTo(0, 0);
-
-  const wingExtrude = { depth: 0.15, bevelEnabled: true, bevelThickness: 0.05, bevelSize: 0.05, bevelSegments: 1 };
-  const wingGeo = new THREE.ExtrudeGeometry(wingShape, wingExtrude);
+  // ── Wings — flat boxes that extend directly from fuselage sides ──
+  const wingGeo = new THREE.BoxGeometry(4.0, 0.12, 2.2);
 
   const leftWing = new THREE.Mesh(wingGeo);
-  leftWing.name = 'wing-left';
-  leftWing.position.set(-0.8, -0.1, 0.3);
-  leftWing.rotation.y = Math.PI;
-  leftWing.rotation.x = -0.08;
+  leftWing.name = 'hull';
+  leftWing.position.set(-2.8, 0, -0.3);
+  leftWing.rotation.z = -0.04; // very slight anhedral
   group.add(leftWing);
 
-  const rightWingGeo = new THREE.ExtrudeGeometry(wingShape, wingExtrude);
-  rightWingGeo.scale(-1, 1, 1);
-  const rightWing = new THREE.Mesh(rightWingGeo);
-  rightWing.name = 'wing-right';
-  rightWing.position.set(0.8, -0.1, 0.3);
-  rightWing.rotation.y = Math.PI;
-  rightWing.rotation.x = -0.08;
+  const rightWing = new THREE.Mesh(wingGeo);
+  rightWing.name = 'hull';
+  rightWing.position.set(2.8, 0, -0.3);
+  rightWing.rotation.z = 0.04;
   group.add(rightWing);
 
-  // ── Wing tip fins (vertical stabilizers) ──
-  const finGeo = new THREE.BoxGeometry(0.1, 0.8, 1.0);
+  // ── Wing tips — vertical fins, flush with wing edges ──
+  const finGeo = new THREE.BoxGeometry(0.12, 0.7, 1.0);
+
   const leftFin = new THREE.Mesh(finGeo);
   leftFin.name = 'hull';
-  leftFin.position.set(-5.2, 0.2, -0.5);
-  leftFin.rotation.z = 0.15;
+  leftFin.position.set(-4.7, 0.3, -0.8);
   group.add(leftFin);
 
   const rightFin = new THREE.Mesh(finGeo);
   rightFin.name = 'hull';
-  rightFin.position.set(5.2, 0.2, -0.5);
-  rightFin.rotation.z = -0.15;
+  rightFin.position.set(4.7, 0.3, -0.8);
   group.add(rightFin);
 
-  // ── Weapon pods under wings ──
-  const podGeo = new THREE.CylinderGeometry(0.2, 0.25, 1.2, 8);
-  podGeo.rotateX(Math.PI / 2);
+  // ── Cannon barrels — extend from nose, touching fuselage ──
+  const barrelGeo = new THREE.CylinderGeometry(0.08, 0.08, 1.5, 6);
+  barrelGeo.rotateX(-Math.PI / 2);
 
-  const leftPod = new THREE.Mesh(podGeo);
-  leftPod.name = 'hull';
-  leftPod.position.set(-3.0, -0.5, 0.2);
-  group.add(leftPod);
+  const leftBarrel = new THREE.Mesh(barrelGeo);
+  leftBarrel.name = 'hull';
+  leftBarrel.position.set(-0.4, -0.15, 3.2);
+  group.add(leftBarrel);
 
-  const rightPod = new THREE.Mesh(podGeo);
-  rightPod.name = 'hull';
-  rightPod.position.set(3.0, -0.5, 0.2);
-  group.add(rightPod);
+  const rightBarrel = new THREE.Mesh(barrelGeo);
+  rightBarrel.name = 'hull';
+  rightBarrel.position.set(0.4, -0.15, 3.2);
+  group.add(rightBarrel);
 
-  // ── Pod missile tips ──
-  const missileGeo = new THREE.ConeGeometry(0.15, 0.5, 6);
-  missileGeo.rotateX(-Math.PI / 2);
-
-  const leftMissile = new THREE.Mesh(missileGeo);
-  leftMissile.name = 'hull';
-  leftMissile.position.set(-3.0, -0.5, 1.05);
-  group.add(leftMissile);
-
-  const rightMissile = new THREE.Mesh(missileGeo);
-  rightMissile.name = 'hull';
-  rightMissile.position.set(3.0, -0.5, 1.05);
-  group.add(rightMissile);
-
-  // ── Twin engines ──
-  const engineGeo = new THREE.CylinderGeometry(0.45, 0.55, 1.8, 10);
+  // ── Engines — cylinders embedded in rear of fuselage ──
+  const engineGeo = new THREE.CylinderGeometry(0.4, 0.5, 1.5, 10);
   engineGeo.rotateX(Math.PI / 2);
 
   const leftEngine = new THREE.Mesh(engineGeo);
   leftEngine.name = 'engine';
-  leftEngine.position.set(-1.0, -0.15, -2.2);
+  leftEngine.position.set(-0.7, 0, -2.0);
   group.add(leftEngine);
 
   const rightEngine = new THREE.Mesh(engineGeo);
   rightEngine.name = 'engine';
-  rightEngine.position.set(1.0, -0.15, -2.2);
+  rightEngine.position.set(0.7, 0, -2.0);
   group.add(rightEngine);
 
-  // ── Engine nozzle glow rings ──
-  const nozzleGeo = new THREE.RingGeometry(0.25, 0.55, 12);
+  // ── Engine nozzles — flush with engine rear ──
+  const nozzleGeo = new THREE.RingGeometry(0.2, 0.5, 12);
 
   const leftNozzle = new THREE.Mesh(nozzleGeo);
   leftNozzle.name = 'nozzle';
-  leftNozzle.position.set(-1.0, -0.15, -3.15);
+  leftNozzle.position.set(-0.7, 0, -2.8);
   group.add(leftNozzle);
 
   const rightNozzle = new THREE.Mesh(nozzleGeo);
   rightNozzle.name = 'nozzle';
-  rightNozzle.position.set(1.0, -0.15, -3.15);
+  rightNozzle.position.set(0.7, 0, -2.8);
   group.add(rightNozzle);
 
-  // ── Engine housing fairings ──
-  const fairingGeo = new THREE.BoxGeometry(0.3, 0.5, 2.2);
+  // ── Rear plate — connects engines visually ──
+  const rearGeo = new THREE.BoxGeometry(2.0, 0.5, 0.3);
+  const rear = new THREE.Mesh(rearGeo);
+  rear.name = 'hull';
+  rear.position.set(0, 0, -1.6);
+  group.add(rear);
 
-  const leftFairing = new THREE.Mesh(fairingGeo);
-  leftFairing.name = 'hull';
-  leftFairing.position.set(-1.0, 0.2, -1.8);
-  group.add(leftFairing);
-
-  const rightFairing = new THREE.Mesh(fairingGeo);
-  rightFairing.name = 'hull';
-  rightFairing.position.set(1.0, 0.2, -1.8);
-  group.add(rightFairing);
-
-  // ── Rear tail fin ──
-  const tailGeo = new THREE.BoxGeometry(0.08, 1.0, 0.8);
-  const tail = new THREE.Mesh(tailGeo);
-  tail.name = 'hull';
-  tail.position.set(0, 0.6, -2.5);
-  group.add(tail);
-
-  // ── Underside detail panels ──
-  const panelGeo = new THREE.BoxGeometry(0.8, 0.08, 1.4);
-  const leftPanel = new THREE.Mesh(panelGeo);
-  leftPanel.name = 'hull';
-  leftPanel.position.set(-0.6, -0.45, -0.3);
-  group.add(leftPanel);
-
-  const rightPanel = new THREE.Mesh(panelGeo);
-  rightPanel.name = 'hull';
-  rightPanel.position.set(0.6, -0.45, -0.3);
-  group.add(rightPanel);
+  // ── Top spine — ridge along fuselage for detail ──
+  const spineGeo = new THREE.BoxGeometry(0.15, 0.25, 3.0);
+  const spine = new THREE.Mesh(spineGeo);
+  spine.name = 'hull';
+  spine.position.set(0, 0.45, -0.2);
+  group.add(spine);
 
   return group;
 }

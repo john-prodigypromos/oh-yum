@@ -94,21 +94,21 @@ export function createEnemyMaterials(): ShipMaterialSet {
   });
 
   const engine = new THREE.MeshStandardMaterial({
-    color: 0x333333,
-    metalness: 0.9,
-    roughness: 0.5,
-    emissive: 0xff4400,
-    emissiveIntensity: 2.0,
+    color: 0x444444,
+    metalness: 0.85,
+    roughness: 0.4,
+    emissive: 0x993300,
+    emissiveIntensity: 0.8,
   });
 
   const nozzle = new THREE.MeshBasicMaterial({
-    color: 0xff4400,
+    color: 0xcc6622,
     transparent: true,
-    opacity: 0.9,
+    opacity: 0.6,
     side: THREE.DoubleSide,
   });
 
-  const engineLight = new THREE.PointLight(0xff4400, 15, 120, 2);
+  const engineLight = new THREE.PointLight(0xcc5500, 4, 60, 2);
 
   return { hull, cockpit, engine, nozzle, engineLight };
 }

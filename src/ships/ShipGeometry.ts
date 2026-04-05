@@ -159,32 +159,96 @@ export function createEnemyShipGeometry(): THREE.Group {
   rightBarrel.position.set(0.4, -0.15, 3.2);
   group.add(rightBarrel);
 
-  // ── Engines — cylinders embedded in rear of fuselage ──
-  const engineGeo = new THREE.CylinderGeometry(0.4, 0.5, 1.5, 10);
-  engineGeo.rotateX(Math.PI / 2);
+  // ── Engines — outer housing (hull-colored) ──
+  const engineHousingGeo = new THREE.CylinderGeometry(0.5, 0.55, 1.8, 12);
+  engineHousingGeo.rotateX(Math.PI / 2);
 
-  const leftEngine = new THREE.Mesh(engineGeo);
-  leftEngine.name = 'engine';
-  leftEngine.position.set(-0.7, 0, -2.0);
-  group.add(leftEngine);
+  const leftHousing = new THREE.Mesh(engineHousingGeo);
+  leftHousing.name = 'hull';
+  leftHousing.position.set(-0.7, 0, -2.0);
+  group.add(leftHousing);
 
-  const rightEngine = new THREE.Mesh(engineGeo);
-  rightEngine.name = 'engine';
-  rightEngine.position.set(0.7, 0, -2.0);
-  group.add(rightEngine);
+  const rightHousing = new THREE.Mesh(engineHousingGeo);
+  rightHousing.name = 'hull';
+  rightHousing.position.set(0.7, 0, -2.0);
+  group.add(rightHousing);
 
-  // ── Engine nozzles — flush with engine rear ──
-  const nozzleGeo = new THREE.RingGeometry(0.2, 0.5, 12);
+  // ── Engine inner core (glowing) ──
+  const engineCoreGeo = new THREE.CylinderGeometry(0.3, 0.4, 1.0, 10);
+  engineCoreGeo.rotateX(Math.PI / 2);
+
+  const leftCore = new THREE.Mesh(engineCoreGeo);
+  leftCore.name = 'engine';
+  leftCore.position.set(-0.7, 0, -2.5);
+  group.add(leftCore);
+
+  const rightCore = new THREE.Mesh(engineCoreGeo);
+  rightCore.name = 'engine';
+  rightCore.position.set(0.7, 0, -2.5);
+  group.add(rightCore);
+
+  // ── Exhaust cones (inside nozzle) ──
+  const exhaustGeo = new THREE.ConeGeometry(0.25, 0.6, 8);
+  exhaustGeo.rotateX(Math.PI / 2);
+
+  const leftExhaust = new THREE.Mesh(exhaustGeo);
+  leftExhaust.name = 'engine';
+  leftExhaust.position.set(-0.7, 0, -3.0);
+  group.add(leftExhaust);
+
+  const rightExhaust = new THREE.Mesh(exhaustGeo);
+  rightExhaust.name = 'engine';
+  rightExhaust.position.set(0.7, 0, -3.0);
+  group.add(rightExhaust);
+
+  // ── Nozzle rings — outer rim ──
+  const nozzleOuterGeo = new THREE.TorusGeometry(0.45, 0.06, 8, 16);
+
+  const leftNozzleOuter = new THREE.Mesh(nozzleOuterGeo);
+  leftNozzleOuter.name = 'hull';
+  leftNozzleOuter.position.set(-0.7, 0, -2.9);
+  group.add(leftNozzleOuter);
+
+  const rightNozzleOuter = new THREE.Mesh(nozzleOuterGeo);
+  rightNozzleOuter.name = 'hull';
+  rightNozzleOuter.position.set(0.7, 0, -2.9);
+  group.add(rightNozzleOuter);
+
+  // ── Nozzle glow rings — inner ──
+  const nozzleGeo = new THREE.RingGeometry(0.15, 0.4, 12);
 
   const leftNozzle = new THREE.Mesh(nozzleGeo);
   leftNozzle.name = 'nozzle';
-  leftNozzle.position.set(-0.7, 0, -2.8);
+  leftNozzle.position.set(-0.7, 0, -2.95);
   group.add(leftNozzle);
 
   const rightNozzle = new THREE.Mesh(nozzleGeo);
   rightNozzle.name = 'nozzle';
-  rightNozzle.position.set(0.7, 0, -2.8);
+  rightNozzle.position.set(0.7, 0, -2.95);
   group.add(rightNozzle);
+
+  // ── Heat shroud plates — flanking each engine ──
+  const shroudGeo = new THREE.BoxGeometry(0.08, 0.6, 1.2);
+
+  const leftShroudL = new THREE.Mesh(shroudGeo);
+  leftShroudL.name = 'hull';
+  leftShroudL.position.set(-1.0, 0, -2.2);
+  group.add(leftShroudL);
+
+  const leftShroudR = new THREE.Mesh(shroudGeo);
+  leftShroudR.name = 'hull';
+  leftShroudR.position.set(-0.4, 0, -2.2);
+  group.add(leftShroudR);
+
+  const rightShroudL = new THREE.Mesh(shroudGeo);
+  rightShroudL.name = 'hull';
+  rightShroudL.position.set(0.4, 0, -2.2);
+  group.add(rightShroudL);
+
+  const rightShroudR = new THREE.Mesh(shroudGeo);
+  rightShroudR.name = 'hull';
+  rightShroudR.position.set(1.0, 0, -2.2);
+  group.add(rightShroudR);
 
   // ── Rear plate — connects engines visually ──
   const rearGeo = new THREE.BoxGeometry(2.0, 0.5, 0.3);

@@ -9,11 +9,9 @@ import * as THREE from 'three';
 export function createPlayerShipGeometry(): THREE.Group {
   const group = new THREE.Group();
 
-  // ── Fuselage ── elongated tapered body
-  const fuselageShape = new THREE.Shape();
-  // Cross-section: rounded hexagon
-  const bodyGeo = new THREE.CylinderGeometry(0.8, 0.5, 8, 8, 1);
-  bodyGeo.rotateX(Math.PI / 2); // align along Z
+  // ── Fuselage ── short tapered body (60% shorter)
+  const bodyGeo = new THREE.CylinderGeometry(0.8, 0.5, 3.2, 8, 1);
+  bodyGeo.rotateX(Math.PI / 2);
   const fuselage = new THREE.Mesh(bodyGeo);
   fuselage.name = 'fuselage';
   fuselage.position.z = 0;
@@ -24,14 +22,14 @@ export function createPlayerShipGeometry(): THREE.Group {
   noseGeo.rotateX(-Math.PI / 2);
   const nose = new THREE.Mesh(noseGeo);
   nose.name = 'nose';
-  nose.position.z = 4.2;
+  nose.position.z = 1.9;
   group.add(nose);
 
   // ── Cockpit dome ──
   const cockpitGeo = new THREE.SphereGeometry(0.5, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2);
   const cockpit = new THREE.Mesh(cockpitGeo);
   cockpit.name = 'cockpit';
-  cockpit.position.set(0, 0.7, 1.5);
+  cockpit.position.set(0, 0.7, 0.5);
   group.add(cockpit);
 
   // ── Wings ── swept back, angled

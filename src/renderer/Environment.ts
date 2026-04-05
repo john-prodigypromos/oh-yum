@@ -180,6 +180,104 @@ export function createEnvironmentMap(
   return cubeRenderTarget.texture;
 }
 
+export function createPlanet(scene: THREE.Scene): THREE.Group {
+  const group = new THREE.Group();
+  const rng = seededRng(314);
+
+  // Planet body
+  const planetGeo = new THREE.SphereGeometry(300, 48, 36);
+  const planetCanvas = document.createElement('canvas');
+  planetCanvas.width = 512;
+  planetCanvas.height = 256;
+  const ctx = planetCanvas.getContext('2d')!;
+
+  // Base color — gas giant bands
+  const grad = ctx.createLinearGradient(0, 0, 0, 256);
+  grad.addColorStop(0, '#2a4a6a');
+  grad.addColorStop(0.15, '#3a6a5a');
+  grad.addColorStop(0.25, '#2a5a7a');
+  grad.addColorStop(0.35, '#4a6a4a');
+  grad.addColorStop(0.5, '#3a5a6a');
+  grad.addColorStop(0.6, '#2a6a5a');
+  grad.addColorStop(0.7, '#3a4a7a');
+  grad.addColorStop(0.85, '#4a5a5a');
+  grad.addColorStop(1, '#2a4a6a');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 512, 256);
+
+  // Storm swirls and cloud bands
+  for (let i = 0; i < 40; i++) {
+    const x = rng() * 512;
+    const y = rng() * 256;
+    const w = 30 + rng() * 80;
+    const h = 3 + rng() * 8;
+    ctx.fillStyle = `rgba(${150 + rng() * 100}, ${150 + rng() * 100}, ${150 + rng() * 100}, ${0.05 + rng() * 0.1})`;
+    ctx.fillRect(x, y, w, h);
+  }
+
+  // Storm spot
+  const spotX = 300;
+  const spotY = 120;
+  const spotGrad = ctx.createRadialGradient(spotX, spotY, 0, spotX, spotY, 25);
+  spotGrad.addColorStop(0, 'rgba(180, 100, 80, 0.3)');
+  spotGrad.addColorStop(1, 'rgba(180, 100, 80, 0)');
+  ctx.fillStyle = spotGrad;
+  ctx.beginPath();
+  ctx.ellipse(spotX, spotY, 30, 15, 0.2, 0, Math.PI * 2);
+  ctx.fill();
+
+  const planetTex = new THREE.CanvasTexture(planetCanvas);
+  planetTex.wrapS = THREE.RepeatWrapping;
+
+  const planetMat = new THREE.MeshStandardMaterial({
+    map: planetTex,
+    metalness: 0.0,
+    roughness: 0.8,
+  });
+
+  const planet = new THREE.Mesh(planetGeo, planetMat);
+  group.add(planet);
+
+  // Atmosphere rim glow
+  const atmosGeo = new THREE.SphereGeometry(310, 32, 24);
+  const atmosMat = new THREE.MeshBasicMaterial({
+    color: 0x4488cc,
+    transparent: true,
+    opacity: 0.08,
+    side: THREE.BackSide,
+  });
+  const atmosphere = new THREE.Mesh(atmosGeo, atmosMat);
+  group.add(atmosphere);
+
+  // Ring system
+  const ringGeo = new THREE.RingGeometry(380, 520, 64);
+  const ringCanvas = document.createElement('canvas');
+  ringCanvas.width = 256;
+  ringCanvas.height = 1;
+  const rctx = ringCanvas.getContext('2d')!;
+  for (let x = 0; x < 256; x++) {
+    const a = (Math.sin(x * 0.1) * 0.5 + 0.5) * 0.3;
+    rctx.fillStyle = `rgba(200, 190, 170, ${a})`;
+    rctx.fillRect(x, 0, 1, 1);
+  }
+  const ringTex = new THREE.CanvasTexture(ringCanvas);
+  const ringMat = new THREE.MeshBasicMaterial({
+    map: ringTex,
+    transparent: true,
+    side: THREE.DoubleSide,
+    depthWrite: false,
+  });
+  const ring = new THREE.Mesh(ringGeo, ringMat);
+  ring.rotation.x = Math.PI * 0.45;
+  group.add(ring);
+
+  // Position planet far away to the lower-right
+  group.position.set(800, -400, -1500);
+
+  scene.add(group);
+  return group;
+}
+
 export interface SpaceEnvironment {
   stars: THREE.Points;
   nebulae: THREE.Group;
@@ -195,6 +293,7 @@ export function createSpaceEnvironment(
   const stars = createStarfield(scene);
   const nebulae = createNebulae(scene);
   const { sun, hemisphere } = createLighting(scene);
+  createPlanet(scene);
 
   // Generate environment map for PBR reflections
   createEnvironmentMap(renderer, scene, camera);

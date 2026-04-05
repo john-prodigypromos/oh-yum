@@ -72,9 +72,11 @@ export function createEnemyMaterials(): ShipMaterialSet {
   const { normalMap, roughnessMap } = getSharedTextures();
 
   const hull = new THREE.MeshPhysicalMaterial({
-    color: 0x882222,
-    metalness: 0.9,
-    roughness: 0.4,
+    color: 0xcc4444,
+    emissive: 0x331111,
+    emissiveIntensity: 0.8,
+    metalness: 0.7,
+    roughness: 0.5,
     normalMap: normalMap,
     roughnessMap: roughnessMap,
     clearcoat: 0.3,
@@ -82,10 +84,12 @@ export function createEnemyMaterials(): ShipMaterialSet {
   });
 
   const cockpit = new THREE.MeshPhysicalMaterial({
-    color: 0x331111,
+    color: 0xff2222,
+    emissive: 0x440000,
+    emissiveIntensity: 1.0,
     metalness: 0.2,
     roughness: 0.15,
-    transmission: 0.4,
+    transmission: 0.3,
     thickness: 0.5,
   });
 
@@ -104,7 +108,7 @@ export function createEnemyMaterials(): ShipMaterialSet {
     side: THREE.DoubleSide,
   });
 
-  const engineLight = new THREE.PointLight(0xff4400, 5, 80, 2);
+  const engineLight = new THREE.PointLight(0xff4400, 15, 120, 2);
 
   return { hull, cockpit, engine, nozzle, engineLight };
 }

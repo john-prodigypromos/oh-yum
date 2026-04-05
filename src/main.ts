@@ -121,7 +121,7 @@ function createOverlayPanel(cssClass = 'overlay-panel'): HTMLDivElement {
     display:flex;flex-direction:column;align-items:center;justify-content:center;
     background:rgba(2,5,8,0.85);z-index:30;
     font-family:Arial,sans-serif;color:#fff;
-    pointer-events:auto;
+    pointer-events:auto;overflow-y:auto;padding:20px 16px;
   `;
   overlayEl.appendChild(panel);
   return panel;
@@ -132,7 +132,7 @@ function showTitleOverlay(): void {
 
   const title = document.createElement('div');
   title.textContent = 'OH-YUM BLASTER';
-  title.style.cssText = 'font-size:48px;font-weight:bold;letter-spacing:4px;margin-bottom:8px;';
+  title.style.cssText = 'font-size:clamp(24px,6vw,48px);font-weight:bold;letter-spacing:4px;margin-bottom:8px;text-align:center;';
   panel.appendChild(title);
 
   const spacer = document.createElement('div');
@@ -141,7 +141,7 @@ function showTitleOverlay(): void {
 
   const selectLabel = document.createElement('div');
   selectLabel.textContent = 'SELECT DIFFICULTY';
-  selectLabel.style.cssText = 'font-size:18px;letter-spacing:2px;margin-bottom:20px;';
+  selectLabel.style.cssText = 'font-size:clamp(14px,3vw,18px);letter-spacing:2px;margin-bottom:16px;';
   panel.appendChild(selectLabel);
 
   const difficulties: { key: DifficultyLevel; label: string; color: string; desc: string }[] = [
@@ -153,9 +153,9 @@ function showTitleOverlay(): void {
   for (const d of difficulties) {
     const btn = document.createElement('button');
     btn.style.cssText = `
-      display:block;width:360px;padding:14px 20px;margin:8px 0;
+      display:block;width:min(360px,85vw);padding:10px 16px;margin:6px 0;
       background:rgba(17,24,34,0.9);border:2px solid ${d.color};
-      color:${d.color};font-size:18px;font-weight:bold;font-family:Arial,sans-serif;
+      color:${d.color};font-size:clamp(14px,3.5vw,18px);font-weight:bold;font-family:Arial,sans-serif;
       cursor:pointer;border-radius:4px;text-align:center;
     `;
     btn.textContent = d.label;
@@ -202,7 +202,7 @@ function showCharSelectOverlay(): void {
 
   const title = document.createElement('div');
   title.textContent = 'CHOOSE YOUR PILOT';
-  title.style.cssText = 'font-size:28px;font-weight:bold;letter-spacing:3px;margin-bottom:30px;';
+  title.style.cssText = 'font-size:clamp(18px,5vw,28px);font-weight:bold;letter-spacing:3px;margin-bottom:20px;text-align:center;';
   panel.appendChild(title);
 
   const chars = [
@@ -216,7 +216,7 @@ function showCharSelectOverlay(): void {
   for (const c of chars) {
     const card = document.createElement('button');
     card.style.cssText = `
-      width:200px;padding:16px 20px;background:rgba(17,24,34,0.9);
+      width:min(200px,40vw);padding:12px 16px;background:rgba(17,24,34,0.9);
       border:2px solid #${c.color.toString(16).padStart(6, '0')};
       color:#fff;font-family:Arial,sans-serif;cursor:pointer;border-radius:6px;
       text-align:center;
@@ -226,7 +226,7 @@ function showCharSelectOverlay(): void {
     const portrait = document.createElement('img');
     portrait.src = `/portraits/${c.id}.jpg`;
     portrait.alt = c.name;
-    portrait.style.cssText = 'width:140px;height:140px;border-radius:50%;object-fit:cover;margin-bottom:12px;border:3px solid #' + c.color.toString(16).padStart(6, '0') + ';';
+    portrait.style.cssText = 'width:clamp(80px,20vw,140px);height:clamp(80px,20vw,140px);border-radius:50%;object-fit:cover;margin-bottom:10px;border:3px solid #' + c.color.toString(16).padStart(6, '0') + ';';
     card.appendChild(portrait);
 
     const name = document.createElement('div');
@@ -258,7 +258,7 @@ function showLevelIntroOverlay(): void {
   const levelText = document.createElement('div');
   levelText.textContent = `LEVEL ${level.level}`;
   levelText.style.cssText = `
-    font-size:64px;font-weight:bold;letter-spacing:6px;
+    font-size:clamp(32px,10vw,64px);font-weight:bold;letter-spacing:4px;
     animation: scaleIn 0.5s ease-out;
   `;
   panel.appendChild(levelText);
@@ -315,8 +315,8 @@ function showHighScoreOverlay(): void {
   pilotImg.src = `/portraits/${currentCharacter}.jpg`;
   pilotImg.alt = currentCharacter;
   pilotImg.style.cssText = `
-    width:160px;height:160px;border-radius:50%;object-fit:cover;
-    border:4px solid #ffcc00;margin-bottom:16px;
+    width:clamp(80px,20vw,160px);height:clamp(80px,20vw,160px);border-radius:50%;object-fit:cover;
+    border:4px solid #ffcc00;margin-bottom:12px;
     animation: heroGlow 1.5s ease-in-out infinite alternate;
   `;
   panel.appendChild(pilotImg);
@@ -324,7 +324,7 @@ function showHighScoreOverlay(): void {
   const title = document.createElement('div');
   title.textContent = 'YOU SAVED HUMANITY FROM EVIL!';
   title.style.cssText = `
-    font-size:32px;font-weight:bold;color:#ffcc00;letter-spacing:3px;
+    font-size:clamp(18px,5vw,32px);font-weight:bold;color:#ffcc00;letter-spacing:2px;
     margin-bottom:8px;text-align:center;
     text-shadow:0 0 20px rgba(255,204,0,0.5);
     animation: heroGlow 1.5s ease-in-out infinite alternate;
@@ -404,8 +404,8 @@ function showGameOverOverlay(): void {
   villainImg.src = '/portraits/villain.jpg';
   villainImg.alt = 'Villain';
   villainImg.style.cssText = `
-    width:180px;height:180px;border-radius:50%;object-fit:cover;
-    border:4px solid #ff4444;margin-bottom:16px;
+    width:clamp(100px,22vw,180px);height:clamp(100px,22vw,180px);border-radius:50%;object-fit:cover;
+    border:4px solid #ff4444;margin-bottom:12px;
     animation: villainBounce 0.5s ease-out;
   `;
   panel.appendChild(villainImg);
@@ -413,8 +413,8 @@ function showGameOverOverlay(): void {
   const taunt = document.createElement('div');
   taunt.textContent = 'TRY AGAIN LOSER!';
   taunt.style.cssText = `
-    font-size:42px;font-weight:bold;color:#ff4444;letter-spacing:3px;
-    margin-bottom:8px;text-shadow:0 0 20px rgba(255,68,68,0.5);
+    font-size:clamp(22px,6vw,42px);font-weight:bold;color:#ff4444;letter-spacing:2px;
+    margin-bottom:8px;text-shadow:0 0 20px rgba(255,68,68,0.5);text-align:center;
     animation: villainBounce 0.5s ease-out;
   `;
   panel.appendChild(taunt);

@@ -47,10 +47,10 @@ export class HUD3D {
       .hud-hull-fill { background:linear-gradient(90deg,#226622,#44ff44); }
       .hud-top-center { position:absolute;top:12px;left:50%;transform:translateX(-50%);font-size:14px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:4px;font-family:Orbitron,sans-serif; }
       .hud-bottom-left { position:absolute;bottom:16px;left:16px;font-size:14px;color:#fff; }
-      .hud-score { font-size:18px;font-weight:bold;color:#ffcc00; }
-      .hud-targets { font-size:13px;color:#aaa;margin-top:4px; }
-      .hud-level { font-size:12px;color:#88aacc;margin-top:4px; }
-      .hud-bottom-right { position:absolute;bottom:12px;right:16px;font-size:14px;font-weight:bold;color:#00ff66;letter-spacing:1px; }
+      .hud-score { font-size:18px;font-weight:bold;color:#ffdd00;text-shadow:0 0 8px rgba(255,220,0,0.7); }
+      .hud-targets { font-size:13px;color:#ccc;margin-top:4px;text-shadow:0 0 4px rgba(200,200,200,0.5); }
+      .hud-level { font-size:12px;color:#aaccee;margin-top:4px;text-shadow:0 0 4px rgba(140,180,220,0.5); }
+      .hud-bottom-right { position:absolute;bottom:12px;right:16px;font-size:14px;font-weight:bold;color:#00ff66;letter-spacing:1px;text-shadow:0 0 8px rgba(0,255,100,0.7); }
 
       /* ── Cockpit frame overlay ── */
       .cockpit-frame {

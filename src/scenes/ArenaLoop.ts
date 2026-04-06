@@ -81,8 +81,8 @@ export function createArenaState(
 
     // Spawn far away — must hunt them down. Distance increases per level.
     const angle = Math.random() * Math.PI * 2;
-    const baseDist = 240 + level * 120; // L1: 360, L2: 480, L3: 600
-    const dist = baseDist + Math.random() * 160;
+    const baseDist = 720 + level * 360; // L1: 1080, L2: 1440, L3: 1800
+    const dist = baseDist + Math.random() * 480;
     const elevation = (Math.random() - 0.5) * 60 + i * 25; // spread vertically too
     enemyGeo.position.set(
       Math.cos(angle) * dist,

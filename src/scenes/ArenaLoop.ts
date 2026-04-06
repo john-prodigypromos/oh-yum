@@ -148,8 +148,12 @@ export function updateArena(
   // Mobile: touch joystick aims, fire/thrust/reverse buttons
   const touch = touchControls.getInput();
 
-  // Yaw: ArrowLeft / ArrowRight on desktop, touch joystick on mobile
+  // Yaw: ArrowLeft / ArrowRight on desktop, touch joystick X on mobile
   const keyYaw = (keys['ArrowRight'] ? 1 : 0) + (keys['ArrowLeft'] ? -1 : 0);
+
+  // Pitch: ArrowUp = nose up, ArrowDown = nose dive (desktop), joystick Y (mobile)
+  const keyPitch = (keys['ArrowUp'] ? 1 : 0) + (keys['ArrowDown'] ? -1 : 0);
+  const touchPitch = Math.abs(touch.pitch) > 0 ? touch.pitch : 0;
 
   // Thrust: E=forward, D=reverse on desktop, touch buttons on mobile
   const keyThrust = (keys['KeyE'] ? 1 : 0) + (keys['KeyD'] ? -1 : 0);
@@ -157,20 +161,10 @@ export function updateArena(
 
   const input: ShipInput = {
     yaw: Math.max(-1, Math.min(1, keyYaw + touch.yaw)),
-    pitch: 0,
+    pitch: Math.max(-1, Math.min(1, keyPitch + touchPitch)),
     roll: 0,
     thrust: combinedThrust,
   };
-
-  // Vertical movement: ArrowUp / ArrowDown on desktop, joystick Y on mobile
-  // Direct position movement — bypasses velocity/drag for instant, responsive feel
-  const vertSpeed = 300;
-  const keyVertical = (keys['ArrowUp'] ? 1 : 0) + (keys['ArrowDown'] ? -1 : 0);
-  const touchVertical = Math.abs(touch.pitch) > 0 ? touch.pitch : 0;
-  const verticalInput = keyVertical + touchVertical;
-  if (verticalInput !== 0) {
-    player.position.y += vertSpeed * verticalInput * dt;
-  }
 
   // ── Player weapons — auto-aim at nearest alive enemy ──
   if (keys['Space'] || touch.fire) {

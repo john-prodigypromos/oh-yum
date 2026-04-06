@@ -187,20 +187,33 @@ export class HUD3D {
       const onScreen = !behind && sx > 30 && sx < w - 30 && sy > 30 && sy < h - 30;
 
       if (!onScreen) {
-        // ── Off-screen tracker arrow at screen edge ──
+        // ── Off-screen tracker — always pinned to screen EDGE ──
         const tracker = document.createElement('div');
         tracker.style.cssText = 'position:fixed;pointer-events:none;z-index:22;text-align:center;';
 
-        // Calculate edge position — clamp to screen border with margin
-        let edgeX = sx;
-        let edgeY = sy;
-        if (behind) { edgeX = w - edgeX; edgeY = h - edgeY; }
-        const margin = 40;
-        edgeX = Math.max(margin, Math.min(w - margin, edgeX));
-        edgeY = Math.max(margin, Math.min(h - margin, edgeY));
+        // Get direction from screen center to projected position
+        let dirX = sx - w / 2;
+        let dirY = sy - h / 2;
+        // If enemy is behind camera, flip the direction
+        if (behind) { dirX = -dirX; dirY = -dirY; }
+        // Avoid zero vector
+        if (Math.abs(dirX) < 1 && Math.abs(dirY) < 1) dirX = 1;
 
-        // Arrow pointing toward enemy
-        const angle = Math.atan2(sy - h / 2, sx - w / 2) + (behind ? Math.PI : 0);
+        // Project direction onto screen edge using line-box intersection
+        const margin = 60;
+        const halfW = w / 2 - margin;
+        const halfH = h / 2 - margin;
+
+        // Scale factor to reach the edge
+        const scaleX = Math.abs(dirX) > 0.01 ? halfW / Math.abs(dirX) : 9999;
+        const scaleY = Math.abs(dirY) > 0.01 ? halfH / Math.abs(dirY) : 9999;
+        const scale = Math.min(scaleX, scaleY);
+
+        const edgeX = w / 2 + dirX * scale;
+        const edgeY = h / 2 + dirY * scale;
+
+        // Arrow angle pointing toward the enemy
+        const angle = Math.atan2(dirY, dirX);
 
         tracker.style.left = edgeX + 'px';
         tracker.style.top = edgeY + 'px';

@@ -11,7 +11,7 @@ export class CockpitCamera {
   private targetRoll = 0;
   private currentRoll = 0;
   private shakeIntensity = 0;
-  private shakeDecay = 5; // per second
+  private shakeDecay = 3; // per second — slower decay for heavier impact feel
 
   // Camera high up, looking forward — minimal ship visible at bottom edge
   private offset = new THREE.Vector3(0, 2.0, 0.5);

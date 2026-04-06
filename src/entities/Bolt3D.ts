@@ -51,7 +51,7 @@ export class BoltPool {
     const playerGlowMat = new THREE.MeshBasicMaterial({
       color: COLORS.playerBolt,
       transparent: true,
-      opacity: 0.45,
+      opacity: 0.25,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
     });

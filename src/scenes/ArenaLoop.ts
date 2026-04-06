@@ -64,9 +64,9 @@ export function createArenaState(
   });
   player.score = previousScore;
 
-  // Hide only the cockpit dome (camera sits inside it), keep rest visible
+  // Hide entire player ship — cockpit SVG overlay provides the visual framing
   playerGeo.traverse((child) => {
-    if (child.name === 'cockpit') child.visible = false;
+    if (child instanceof THREE.Mesh) child.visible = false;
   });
 
   // ── Enemies ──
@@ -219,38 +219,38 @@ export function updateArena(
       // Sound + camera shake + intense visual feedback on player hit
       if (evt.target === player) {
         const isShield = evt.shieldHit;
-        cockpitCam.shake(isShield ? 3.0 : 5.0);
+        cockpitCam.shake(isShield ? 5.0 : 10.0);
         if (isShield) state.sound.shieldHit();
         else state.sound.hullHit();
 
         const overlay = document.getElementById('ui-overlay')!;
 
-        // Full-screen damage flash — big, bright, lingers
+        // Full-screen damage flash — amber for hull, blue for shield
         const flash = document.createElement('div');
         const color = isShield
-          ? 'rgba(0, 150, 255, 0.6)'    // bright blue for shield
-          : 'rgba(255, 30, 0, 0.7)';     // intense red for hull
+          ? 'rgba(0, 150, 255, 0.6)'          // bright blue for shield
+          : 'rgba(255, 160, 20, 0.75)';        // intense amber for hull
         flash.style.cssText = `
           position:fixed;top:0;left:0;width:100%;height:100%;
           background:${color};z-index:40;pointer-events:none;
-          transition:opacity 0.8s ease-out;
+          transition:opacity 1.0s ease-out;
         `;
         overlay.appendChild(flash);
         requestAnimationFrame(() => { flash.style.opacity = '0'; });
-        setTimeout(() => flash.remove(), 900);
+        setTimeout(() => flash.remove(), 1100);
 
-        // Damage vignette — heavy dark red edges that persist
+        // Amber vignette — heavy glowing edges that persist on hull hits
         if (!isShield) {
           const vignette = document.createElement('div');
           vignette.style.cssText = `
             position:fixed;top:0;left:0;width:100%;height:100%;
             z-index:39;pointer-events:none;
-            background:radial-gradient(ellipse at center, transparent 30%, rgba(255,0,0,0.45) 100%);
-            transition:opacity 1.2s ease-out;
+            background:radial-gradient(ellipse at center, transparent 20%, rgba(255,140,0,0.55) 70%, rgba(200,60,0,0.7) 100%);
+            transition:opacity 1.8s ease-out;
           `;
           overlay.appendChild(vignette);
           requestAnimationFrame(() => { vignette.style.opacity = '0'; });
-          setTimeout(() => vignette.remove(), 1300);
+          setTimeout(() => vignette.remove(), 2000);
         }
 
         // Shield shimmer effect — thick blue border + strong glow

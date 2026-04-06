@@ -8,8 +8,8 @@ import { BoltPool } from '../entities/Bolt3D';
 import { WEAPONS } from '../config';
 
 const PLAYER_BOLT_OFFSETS = [
-  new THREE.Vector3(-1.2, -0.1, 4),
-  new THREE.Vector3(1.2, -0.1, 4),
+  new THREE.Vector3(-1.2, -0.5, 12),
+  new THREE.Vector3(1.2, -0.5, 12),
 ];
 
 const ENEMY_BOLT_OFFSET = new THREE.Vector3(0, 0, 3);

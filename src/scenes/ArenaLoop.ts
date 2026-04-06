@@ -146,28 +146,29 @@ export function updateArena(
   const { player, enemies, enemyAIs, boltPool, explosions, cockpitCam, touchControls, mouseControls } = state;
 
   // ── Player input ──
-  // Desktop: mouse/trackpad aims, space fires
-  // Mobile: touch joystick aims, fire button fires
-  const mouse = mouseControls.getInput();
+  // Desktop: Arrow keys move, Space fires, E=thrust, D=reverse
+  // Mobile: touch joystick aims, fire/thrust/reverse buttons
   const touch = touchControls.getInput();
 
-  // Thrust: ArrowUp / ArrowDown on desktop, touch buttons on mobile
-  const keyThrust = (keys['ArrowUp'] ? 1 : 0) + (keys['ArrowDown'] ? -1 : 0);
+  // Yaw: ArrowLeft / ArrowRight on desktop, touch joystick on mobile
+  const keyYaw = (keys['ArrowRight'] ? 1 : 0) + (keys['ArrowLeft'] ? -1 : 0);
+
+  // Thrust: E=forward, D=reverse on desktop, touch buttons on mobile
+  const keyThrust = (keys['KeyE'] ? 1 : 0) + (keys['KeyD'] ? -1 : 0);
   const combinedThrust = Math.max(-1, Math.min(1, keyThrust + touch.thrust));
 
   const input: ShipInput = {
-    yaw: Math.max(-1, Math.min(1, mouse.yaw + touch.yaw)),
-    pitch: 0, // pitch rotation disabled — vertical movement used instead
+    yaw: Math.max(-1, Math.min(1, keyYaw + touch.yaw)),
+    pitch: 0,
     roll: 0,
     thrust: combinedThrust,
   };
 
-  // Vertical movement: mouse Y (desktop) + W/S keys + joystick Y (mobile)
-  // Push up = ship goes up, push down = ship goes down
+  // Vertical movement: ArrowUp / ArrowDown on desktop, joystick Y on mobile
   // 3x thrust multiplier so vertical movement overcomes drag and feels responsive
-  const keyVertical = (keys['KeyW'] ? 1 : 0) + (keys['KeyS'] ? -1 : 0);
+  const keyVertical = (keys['ArrowUp'] ? 1 : 0) + (keys['ArrowDown'] ? -1 : 0);
   const touchVertical = Math.abs(touch.pitch) > 0 ? touch.pitch : 0;
-  const verticalInput = mouse.verticalMove + touchVertical + keyVertical;
+  const verticalInput = keyVertical + touchVertical;
   if (verticalInput !== 0) {
     const vertForce = PHYSICS.THRUST * 3 * player.speedMult * verticalInput;
     player.velocity.y += vertForce * dt;

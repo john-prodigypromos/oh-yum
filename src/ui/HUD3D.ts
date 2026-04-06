@@ -46,11 +46,11 @@ export class HUD3D {
       .hud-shield-fill { background:linear-gradient(90deg,#006688,#00ccff); }
       .hud-hull-fill { background:linear-gradient(90deg,#226622,#44ff44); }
       .hud-top-center { position:absolute;top:12px;left:50%;transform:translateX(-50%);font-size:14px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:4px;font-family:Orbitron,sans-serif; }
-      .hud-bottom-left { position:absolute;bottom:calc(22vh + 8px);left:16px;font-size:14px;color:#fff; }
+      .hud-bottom-left { position:absolute;bottom:8px;left:16px;font-size:14px;color:#fff;z-index:25; }
       .hud-score { font-size:18px;font-weight:bold;color:#ffdd00;text-shadow:0 0 10px rgba(255,220,0,0.8),0 0 20px rgba(255,180,0,0.4); }
       .hud-targets { font-size:13px;color:#ddd;margin-top:4px;text-shadow:0 0 6px rgba(200,200,200,0.6); }
       .hud-level { font-size:12px;color:#bbddff;margin-top:4px;text-shadow:0 0 6px rgba(140,180,220,0.6); }
-      .hud-bottom-right { position:absolute;bottom:calc(22vh + 8px);right:16px;font-size:14px;font-weight:bold;color:#00ff66;letter-spacing:1px;text-shadow:0 0 10px rgba(0,255,100,0.8),0 0 20px rgba(0,200,80,0.4); }
+      .hud-bottom-right { position:absolute;bottom:8px;right:16px;font-size:14px;font-weight:bold;color:#00ff66;letter-spacing:1px;text-shadow:0 0 10px rgba(0,255,100,0.8),0 0 20px rgba(0,200,80,0.4);z-index:25; }
 
       /* ── Cockpit frame overlay ── */
       .cockpit-frame {
@@ -233,7 +233,7 @@ export class HUD3D {
 
       // Project enemy position to screen (offset well above ship)
       const labelPos = enemy.position.clone();
-      labelPos.y += 20; // higher above the ship so portrait clears the model
+      labelPos.y += 34; // well above the ship so portrait clears the model
       const pos = labelPos.project(camera);
 
       const sx = (pos.x * 0.5 + 0.5) * w;

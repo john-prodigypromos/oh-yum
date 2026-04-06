@@ -163,13 +163,13 @@ export function updateArena(
   };
 
   // Vertical movement: ArrowUp / ArrowDown on desktop, joystick Y on mobile
-  // 3x thrust multiplier so vertical movement overcomes drag and feels responsive
+  // Direct position movement — bypasses velocity/drag for instant, responsive feel
+  const vertSpeed = 120;
   const keyVertical = (keys['ArrowUp'] ? 1 : 0) + (keys['ArrowDown'] ? -1 : 0);
   const touchVertical = Math.abs(touch.pitch) > 0 ? touch.pitch : 0;
   const verticalInput = keyVertical + touchVertical;
   if (verticalInput !== 0) {
-    const vertForce = PHYSICS.THRUST * 3 * player.speedMult * verticalInput;
-    player.velocity.y += vertForce * dt;
+    player.position.y += vertSpeed * verticalInput * dt;
   }
 
   // ── Player weapons — auto-aim at nearest alive enemy ──

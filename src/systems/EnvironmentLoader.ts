@@ -6,10 +6,11 @@
 import * as THREE from 'three';
 import { Ship3D } from '../entities/Ship3D';
 import type { BoltPool } from '../entities/Bolt3D';
+import { ExplosionPool } from '../entities/Explosion3D';
 
 export interface LevelEnvironment {
   /** Per-frame update for environment effects. */
-  update(dt: number, now: number, player: Ship3D, enemies: Ship3D[], boltPool?: BoltPool): void;
+  update(dt: number, now: number, player: Ship3D, enemies: Ship3D[], boltPool?: BoltPool, camera?: THREE.PerspectiveCamera, explosions?: ExplosionPool): void;
   /** Remove all environment objects from the scene. */
   cleanup(): void;
 }
@@ -124,7 +125,7 @@ export function createAsteroidBelt(scene: THREE.Scene): LevelEnvironment {
 
   const _tmpDiff = new THREE.Vector3();
 
-  function update(dt: number, _now: number, player: Ship3D, enemies: Ship3D[], boltPool?: BoltPool): void {
+  function update(dt: number, _now: number, player: Ship3D, enemies: Ship3D[], boltPool?: BoltPool, camera?: THREE.PerspectiveCamera, explosions?: ExplosionPool): void {
     for (const ast of asteroids) {
       if (!ast.alive) continue;
 
@@ -173,14 +174,17 @@ export function createAsteroidBelt(scene: THREE.Scene): LevelEnvironment {
             boltPool.deactivate(bolt);
 
             if (ast.hp <= 0) {
-              // Asteroid destroyed — shrink and fade out
+              // Asteroid destroyed — boom!
               ast.alive = false;
               ast.mesh.visible = false;
               scene.remove(ast.mesh);
+
+              if (explosions && camera) {
+                explosions.spawnDeathWorld(ast.mesh.position, camera);
+              }
             } else {
               // Visual feedback — briefly brighten on hit
               const mat = ast.mesh.material as THREE.MeshStandardMaterial;
-              const origColor = mat.color.getHex();
               mat.emissive.setHex(0xff4400);
               mat.emissiveIntensity = 0.5;
               setTimeout(() => {
@@ -296,119 +300,108 @@ export function createNebulaFog(scene: THREE.Scene): LevelEnvironment {
 }
 
 // ── Level 3: Black Hole ─────────────────────────────────
+// Cinematic backdrop with real gravity. Flat ring accretion
+// disk + glow sprite instead of thick torus geometry.
+
+/** Black hole world position — exported so AI behaviors can reference it. */
+export const BLACK_HOLE_POS = new THREE.Vector3(600, -80, -400);
 
 export function createBlackHole(scene: THREE.Scene): LevelEnvironment {
   const group = new THREE.Group();
+  group.position.copy(BLACK_HOLE_POS);
 
-  // Black hole position — offset from center so it's a hazard, not the focus
-  const BH_POS = new THREE.Vector3(300, -50, -200);
-  group.position.copy(BH_POS);
+  // ── Glow halo (canvas-generated sprite) ──
+  const glowCanvas = document.createElement('canvas');
+  glowCanvas.width = 256;
+  glowCanvas.height = 256;
+  const ctx = glowCanvas.getContext('2d')!;
+  const grad = ctx.createRadialGradient(128, 128, 10, 128, 128, 128);
+  grad.addColorStop(0, 'rgba(255, 140, 50, 0.35)');
+  grad.addColorStop(0.25, 'rgba(255, 80, 20, 0.18)');
+  grad.addColorStop(0.55, 'rgba(160, 40, 10, 0.06)');
+  grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 256, 256);
+  const glowTex = new THREE.CanvasTexture(glowCanvas);
+  const glowMat = new THREE.SpriteMaterial({
+    map: glowTex,
+    transparent: true,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  });
+  const glowSprite = new THREE.Sprite(glowMat);
+  glowSprite.scale.set(500, 500, 1);
+  group.add(glowSprite);
 
-  // Black sphere (the singularity)
-  const holeGeo = new THREE.SphereGeometry(25, 32, 32);
+  // ── Singularity sphere ──
+  const holeGeo = new THREE.SphereGeometry(50, 32, 32);
   const holeMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
   group.add(new THREE.Mesh(holeGeo, holeMat));
 
-  // Accretion disk — glowing torus
-  const diskGeo = new THREE.TorusGeometry(60, 12, 16, 48);
+  // ── Accretion disk — flat ring, tilted ──
+  const DISK_TILT = Math.PI * 0.42;
+  const diskGeo = new THREE.RingGeometry(60, 200, 64);
   const diskMat = new THREE.MeshBasicMaterial({
-    color: 0xff8800,
+    color: 0xff7700,
     transparent: true,
-    opacity: 0.7,
+    opacity: 0.45,
+    side: THREE.DoubleSide,
     blending: THREE.AdditiveBlending,
     depthWrite: false,
   });
   const disk = new THREE.Mesh(diskGeo, diskMat);
-  disk.rotation.x = Math.PI * 0.45; // tilted
+  disk.rotation.x = DISK_TILT;
   group.add(disk);
 
-  // Outer glow ring
-  const outerDiskGeo = new THREE.TorusGeometry(85, 18, 8, 48);
-  const outerDiskMat = new THREE.MeshBasicMaterial({
-    color: 0xffaa22,
+  // ── Inner bright edge ──
+  const edgeGeo = new THREE.RingGeometry(52, 68, 64);
+  const edgeMat = new THREE.MeshBasicMaterial({
+    color: 0xffcc66,
     transparent: true,
-    opacity: 0.25,
+    opacity: 0.55,
+    side: THREE.DoubleSide,
     blending: THREE.AdditiveBlending,
     depthWrite: false,
   });
-  const outerDisk = new THREE.Mesh(outerDiskGeo, outerDiskMat);
-  outerDisk.rotation.x = Math.PI * 0.45;
-  group.add(outerDisk);
+  const edge = new THREE.Mesh(edgeGeo, edgeMat);
+  edge.rotation.x = DISK_TILT;
+  group.add(edge);
 
-  // Inner bright ring
-  const innerDiskGeo = new THREE.TorusGeometry(35, 4, 8, 48);
-  const innerDiskMat = new THREE.MeshBasicMaterial({
-    color: 0xffffff,
-    transparent: true,
-    opacity: 0.5,
-    blending: THREE.AdditiveBlending,
-    depthWrite: false,
-  });
-  const innerDisk = new THREE.Mesh(innerDiskGeo, innerDiskMat);
-  innerDisk.rotation.x = Math.PI * 0.45;
-  group.add(innerDisk);
-
-  // Point light at center for dramatic lighting
-  const bhLight = new THREE.PointLight(0xff6600, 3, 400);
+  // ── Warm point light ──
+  const bhLight = new THREE.PointLight(0xff6600, 2, 800);
   group.add(bhLight);
 
   scene.add(group);
 
-  // Gravity constants
-  const GRAVITY_STRENGTH = 800;
-  const MIN_DIST = 30;      // inside this = instant death
-  const MAX_EFFECT_DIST = 500;
-
+  // ── Gravity — pulls ships that fly close ──
+  const GRAVITY_STRENGTH = 600;
+  const EVENT_HORIZON = 55;
+  const MAX_EFFECT_DIST = 600;
   const _toHole = new THREE.Vector3();
 
   function applyGravity(entity: Ship3D, dt: number): void {
     if (!entity.alive) return;
-
-    _toHole.subVectors(BH_POS, entity.position);
+    _toHole.subVectors(BLACK_HOLE_POS, entity.position);
     const dist = _toHole.length();
-
-    if (dist < MIN_DIST) {
-      // Event horizon — instant death
+    if (dist < EVENT_HORIZON) {
       entity.applyDamage(9999, performance.now());
       return;
     }
-
     if (dist < MAX_EFFECT_DIST) {
-      // Gravitational pull — inverse square, capped
       const force = GRAVITY_STRENGTH / (dist * dist) * dt;
       _toHole.normalize();
       entity.velocity.addScaledVector(_toHole, force * 60);
     }
   }
 
-  function update(dt: number, _now: number, player: Ship3D, enemies: Ship3D[], boltPool?: BoltPool): void {
-    // Rotate accretion disk
-    disk.rotation.z += dt * 0.3;
-    outerDisk.rotation.z += dt * 0.15;
-    innerDisk.rotation.z += dt * 0.5;
+  function update(dt: number, _now: number, player: Ship3D, enemies: Ship3D[]): void {
+    // Very slow rotation — ominous, not distracting
+    disk.rotation.z += dt * 0.04;
+    edge.rotation.z += dt * 0.06;
 
-    // Pulse light
-    bhLight.intensity = 3 + Math.sin(performance.now() * 0.002) * 0.5;
-
-    // Apply gravity to player
     applyGravity(player, dt);
-
-    // Apply gravity to enemies
     for (const enemy of enemies) {
       applyGravity(enemy, dt);
-    }
-
-    // Apply gravity to bolts
-    if (boltPool) {
-      for (const bolt of boltPool.getActive()) {
-        _toHole.subVectors(BH_POS, bolt.mesh.position);
-        const dist = _toHole.length();
-        if (dist < MAX_EFFECT_DIST && dist > 1) {
-          const force = GRAVITY_STRENGTH * 0.3 / (dist * dist) * dt;
-          _toHole.normalize();
-          bolt.velocity.addScaledVector(_toHole, force * 60);
-        }
-      }
     }
   }
 
@@ -416,12 +409,12 @@ export function createBlackHole(scene: THREE.Scene): LevelEnvironment {
     scene.remove(group);
     holeGeo.dispose();
     diskGeo.dispose();
-    outerDiskGeo.dispose();
-    innerDiskGeo.dispose();
+    edgeGeo.dispose();
     holeMat.dispose();
     diskMat.dispose();
-    outerDiskMat.dispose();
-    innerDiskMat.dispose();
+    edgeMat.dispose();
+    glowTex.dispose();
+    glowMat.dispose();
   }
 
   return { update, cleanup };

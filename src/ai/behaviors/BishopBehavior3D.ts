@@ -8,6 +8,7 @@ import * as THREE from 'three';
 import { Ship3D } from '../../entities/Ship3D';
 import type { AIBehavior3D } from '../AIBehavior3D';
 import type { ShipInput } from '../../systems/PhysicsSystem3D';
+import { BLACK_HOLE_POS } from '../../systems/EnvironmentLoader';
 
 type BossPhase = 'phase1' | 'phase2' | 'phase3';
 type SubPhase = 'dogfight' | 'breakaway' | 'evasive' | 'charge';
@@ -25,8 +26,8 @@ export class BishopBehavior3D implements AIBehavior3D {
   droneRespawnTimer = 0;
   readonly DRONE_RESPAWN_DELAY = 15;
 
-  // Black hole position (must match EnvironmentLoader)
-  private readonly BH_POS = new THREE.Vector3(300, -50, -200);
+  // Black hole position — imported from EnvironmentLoader
+  private readonly BH_POS = BLACK_HOLE_POS;
 
   constructor(
     _aimAccuracy: number,

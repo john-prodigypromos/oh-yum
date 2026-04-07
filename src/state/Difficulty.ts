@@ -17,8 +17,8 @@ export interface DifficultyConfig {
 export const DIFFICULTY: Record<DifficultyLevel, DifficultyConfig> = {
   beginner: {
     label: 'BEGINNER',
-    playerHull: 180,
-    playerShield: 80,
+    playerHull: 250,
+    playerShield: 120,
     enemyHull: 350,
     enemyShield: 0,
     enemySpeedMult: 0.6,
@@ -28,8 +28,8 @@ export const DIFFICULTY: Record<DifficultyLevel, DifficultyConfig> = {
   },
   intermediate: {
     label: 'INTERMEDIATE',
-    playerHull: 120,
-    playerShield: 60,
+    playerHull: 180,
+    playerShield: 90,
     enemyHull: 500,
     enemyShield: 15,
     enemySpeedMult: 0.75,
@@ -39,8 +39,8 @@ export const DIFFICULTY: Record<DifficultyLevel, DifficultyConfig> = {
   },
   expert: {
     label: 'EXPERT',
-    playerHull: 80,
-    playerShield: 40,
+    playerHull: 120,
+    playerShield: 60,
     enemyHull: 800,
     enemyShield: 40,
     enemySpeedMult: 0.9,

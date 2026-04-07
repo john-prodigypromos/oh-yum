@@ -8,7 +8,7 @@
 export const VILLAIN_TAUNTS: Record<string, { onSpawn: string; onWin: string }> = {
   bolo_tie: {
     onSpawn: 'Wo unto the liar...',
-    onWin: 'I am so righteous',
+    onWin: 'I am so righteous!',
   },
   bow_tie: {
     onSpawn: 'Are you a thug nasty?',

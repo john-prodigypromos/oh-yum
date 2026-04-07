@@ -9,7 +9,7 @@ import { createArenaState, updateArena, cleanupArena, type ArenaState } from './
 import { HUD3D } from './ui/HUD3D';
 import { setDifficulty, type DifficultyLevel } from './state/Difficulty';
 import { resetLevelState, currentLevelIndex, advanceLevel, getCurrentLevel, totalScore } from './state/LevelState';
-import { setCharacter, currentCharacter } from './state/Character';
+import { setCharacter, currentCharacter, CHARACTERS, type CharacterName, type CharacterConfig } from './state/Character';
 import { addHighScore, getHighScores } from './state/HighScores';
 import { currentDifficulty } from './state/Difficulty';
 import { COLORS } from './config';
@@ -148,16 +148,9 @@ function clearOverlay(): void {
   document.querySelectorAll('.death-fx, .explosion-fx').forEach(el => el.remove());
 }
 
-function createOverlayPanel(cssClass = 'overlay-panel'): HTMLDivElement {
+function createOverlayPanel(cssClass = 'game-overlay'): HTMLDivElement {
   const panel = document.createElement('div');
   panel.className = cssClass;
-  panel.style.cssText = `
-    position:fixed;top:0;left:0;width:100%;height:100%;
-    display:flex;flex-direction:column;align-items:center;justify-content:center;
-    background:rgba(2,5,8,0.85);z-index:30;
-    font-family:Rajdhani,sans-serif;color:#fff;
-    pointer-events:auto;overflow-y:auto;padding:20px 16px;
-  `;
   overlayEl.appendChild(panel);
   return panel;
 }
@@ -169,12 +162,12 @@ function showTitleOverlay(): void {
   const logo = document.createElement('img');
   logo.src = '/portraits/prodigy-logo.png';
   logo.alt = 'Prodigy Promos';
-  logo.style.cssText = 'width:clamp(120px,30vw,240px);height:auto;object-fit:contain;margin-bottom:20px;filter:drop-shadow(0 0 20px rgba(0,200,255,0.3));';
+  logo.style.cssText = 'width:clamp(100px,25vw,200px);height:auto;object-fit:contain;margin-bottom:24px;filter:drop-shadow(0 0 30px rgba(0,200,255,0.2));animation:fadeIn 0.4s ease-out both;';
   panel.appendChild(logo);
 
   const title = document.createElement('div');
   title.textContent = 'OH-YUM BLASTER';
-  title.style.cssText = 'font-size:clamp(28px,7vw,56px);font-weight:900;letter-spacing:6px;margin-bottom:12px;text-align:center;font-family:Orbitron,sans-serif;text-shadow:0 0 30px rgba(0,200,255,0.3),0 0 60px rgba(0,100,255,0.15);';
+  title.className = 'title-hero';
   panel.appendChild(title);
 
   const spacer = document.createElement('div');
@@ -183,7 +176,8 @@ function showTitleOverlay(): void {
 
   const selectLabel = document.createElement('div');
   selectLabel.textContent = 'SELECT DIFFICULTY';
-  selectLabel.style.cssText = 'font-size:clamp(14px,3vw,18px);letter-spacing:2px;margin-bottom:16px;';
+  selectLabel.className = 'section-label';
+  selectLabel.style.marginBottom = '16px';
   panel.appendChild(selectLabel);
 
   const difficulties: { key: DifficultyLevel; label: string; color: string; desc: string }[] = [
@@ -194,17 +188,14 @@ function showTitleOverlay(): void {
 
   for (const d of difficulties) {
     const btn = document.createElement('button');
-    btn.style.cssText = `
-      display:block;width:min(360px,85vw);padding:10px 16px;margin:6px 0;
-      background:rgba(17,24,34,0.9);border:2px solid ${d.color};
-      color:${d.color};font-size:clamp(14px,3.5vw,18px);font-weight:bold;font-family:Rajdhani,sans-serif;
-      cursor:pointer;border-radius:4px;text-align:center;
-    `;
+    btn.className = 'overlay-btn';
+    btn.style.borderColor = d.color;
+    btn.style.color = d.color;
     btn.textContent = d.label;
 
     const desc = document.createElement('div');
     desc.textContent = d.desc;
-    desc.style.cssText = 'font-size:11px;color:#ccc;font-weight:normal;margin-top:4px;';
+    desc.className = 'btn-desc';
     btn.appendChild(desc);
 
     btn.addEventListener('click', () => {
@@ -212,8 +203,6 @@ function showTitleOverlay(): void {
       resetLevelState();
       sceneManager.transition('charSelect');
     });
-    btn.addEventListener('mouseenter', () => { btn.style.background = 'rgba(26,40,56,0.95)'; });
-    btn.addEventListener('mouseleave', () => { btn.style.background = 'rgba(17,24,34,0.9)'; });
     panel.appendChild(btn);
   }
 
@@ -222,20 +211,20 @@ function showTitleOverlay(): void {
   if (scores.length > 0) {
     const hsTitle = document.createElement('div');
     hsTitle.textContent = 'HIGH SCORES';
-    hsTitle.style.cssText = 'font-size:14px;color:#ffcc00;margin-top:30px;letter-spacing:2px;';
+    hsTitle.className = 'hs-title';
     panel.appendChild(hsTitle);
 
     for (const entry of scores.slice(0, 5)) {
       const row = document.createElement('div');
       row.textContent = `${entry.name} — ${entry.score.toLocaleString()}`;
-      row.style.cssText = 'font-size:12px;color:#aaa;margin-top:4px;';
+      row.className = 'hs-row';
       panel.appendChild(row);
     }
   }
 
   const footer = document.createElement('div');
   footer.textContent = 'PRIDAY LABS';
-  footer.style.cssText = 'position:absolute;bottom:16px;right:16px;font-size:16px;font-weight:bold;color:#00ff66;';
+  footer.className = 'brand-footer';
   panel.appendChild(footer);
 }
 
@@ -244,53 +233,49 @@ function showCharSelectOverlay(): void {
 
   const title = document.createElement('div');
   title.textContent = 'CHOOSE YOUR PILOT';
-  title.style.cssText = 'font-size:clamp(18px,5vw,28px);font-weight:bold;letter-spacing:3px;margin-bottom:20px;text-align:center;';
+  title.style.cssText = 'font-family:var(--font-display);font-size:clamp(16px,4vw,24px);font-weight:700;letter-spacing:4px;margin-bottom:24px;text-align:center;color:var(--text-dim);animation:fadeIn 0.5s ease-out both;';
   panel.appendChild(title);
 
-  const chars = [
-    { id: 'owen', name: 'OWEN', tagline: 'Precision striker', color: 0x88aacc },
-    { id: 'william', name: 'WILLIAM', tagline: 'Aggressive brawler', color: 0xccaa44 },
-  ];
+  // Pull pilots from Character config
+  const charEntries = Object.entries(CHARACTERS) as [CharacterName, CharacterConfig][];
 
-  const row = document.createElement('div');
-  row.style.cssText = 'display:flex;gap:30px;';
+  const grid = document.createElement('div');
+  grid.style.cssText = 'display:flex;flex-wrap:wrap;gap:16px;justify-content:center;max-width:min(900px,95vw);';
 
-  for (const c of chars) {
+  for (const [id, cfg] of charEntries) {
+    const hex = '#' + cfg.color.toString(16).padStart(6, '0');
     const card = document.createElement('button');
-    card.style.cssText = `
-      width:min(200px,40vw);padding:12px 16px;background:rgba(17,24,34,0.9);
-      border:2px solid #${c.color.toString(16).padStart(6, '0')};
-      color:#fff;font-family:Rajdhani,sans-serif;cursor:pointer;border-radius:6px;
-      text-align:center;
-    `;
+    card.className = 'char-card';
+    card.style.borderColor = hex;
+    card.style.width = 'min(140px, 22vw)';
+    card.style.padding = '12px 10px';
 
     // Portrait image
     const portrait = document.createElement('img');
-    portrait.src = `/portraits/${c.id}.jpg`;
-    portrait.alt = c.name;
-    portrait.style.cssText = 'width:clamp(80px,20vw,140px);height:clamp(80px,20vw,140px);border-radius:50%;object-fit:cover;margin-bottom:10px;border:3px solid #' + c.color.toString(16).padStart(6, '0') + ';';
+    portrait.src = `/portraits/${id}.jpg`;
+    portrait.alt = cfg.label;
+    portrait.className = 'portrait-hero';
+    portrait.style.cssText = `width:clamp(70px,16vw,110px);height:clamp(70px,16vw,110px);margin-bottom:8px;border-color:${hex};`;
     card.appendChild(portrait);
 
     const name = document.createElement('div');
-    name.textContent = c.name;
-    name.style.cssText = 'font-size:22px;font-weight:bold;margin-bottom:8px;';
+    name.textContent = cfg.label;
+    name.style.cssText = 'font-family:var(--font-display);font-size:clamp(11px,2.5vw,14px);font-weight:700;margin-bottom:4px;letter-spacing:2px;';
     card.appendChild(name);
 
     const tag = document.createElement('div');
-    tag.textContent = c.tagline;
-    tag.style.cssText = 'font-size:12px;color:#aaa;';
+    tag.textContent = cfg.tagline;
+    tag.style.cssText = 'font-size:clamp(9px,2vw,11px);color:var(--text-dim);letter-spacing:0.5px;';
     card.appendChild(tag);
 
     card.addEventListener('click', () => {
-      setCharacter(c.id as 'owen' | 'william');
+      setCharacter(id);
       sceneManager.transition('levelIntro');
     });
-    card.addEventListener('mouseenter', () => { card.style.background = 'rgba(26,40,56,0.95)'; });
-    card.addEventListener('mouseleave', () => { card.style.background = 'rgba(17,24,34,0.9)'; });
-    row.appendChild(card);
+    grid.appendChild(card);
   }
 
-  panel.appendChild(row);
+  panel.appendChild(grid);
 }
 
 // Villain intro data — portrait, name, and taunt per level
@@ -308,14 +293,16 @@ function showLevelIntroOverlay(): void {
   const levelText = document.createElement('div');
   levelText.textContent = `LEVEL ${level.level}`;
   levelText.style.cssText = `
-    font-size:clamp(32px,10vw,64px);font-weight:bold;letter-spacing:4px;
-    animation: scaleIn 0.5s ease-out;
+    font-family:var(--font-display);font-size:clamp(32px,10vw,64px);font-weight:900;letter-spacing:6px;
+    background:linear-gradient(180deg, #fff 10%, var(--cyan) 100%);
+    -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+    filter:drop-shadow(0 0 30px var(--cyan-glow));animation:scaleIn 0.5s ease-out;
   `;
   panel.appendChild(levelText);
 
   const subtitle = document.createElement('div');
   subtitle.textContent = level.subtitle;
-  subtitle.style.cssText = 'font-size:20px;color:#ffcc00;margin-top:12px;letter-spacing:2px;opacity:0;animation:fadeIn 0.5s 0.3s forwards;';
+  subtitle.style.cssText = 'font-size:18px;color:var(--gold);margin-top:12px;letter-spacing:3px;opacity:0;animation:fadeIn 0.5s 0.3s forwards;';
   panel.appendChild(subtitle);
 
   // ── Villain intro cards — show new enemies for this level ──
@@ -328,30 +315,22 @@ function showLevelIntroOverlay(): void {
     const isNew = i === level.level - 1; // highlight the newest enemy
 
     const card = document.createElement('div');
-    card.style.cssText = `
-      display:flex;flex-direction:column;align-items:center;
-      padding:16px 20px;background:rgba(40,10,10,${isNew ? '0.8' : '0.4'});
-      border:2px solid ${isNew ? '#ff4444' : '#662222'};border-radius:8px;
-      ${isNew ? 'animation:villainPulse 1.5s ease-in-out infinite alternate;' : ''}
-    `;
+    card.className = isNew ? 'villain-card new-threat' : 'villain-card';
 
     // Portrait
     const img = document.createElement('img');
     img.src = `/portraits/${villain.portrait}`;
-    img.style.cssText = `
-      width:clamp(140px,35vw,240px);height:clamp(140px,35vw,240px);border-radius:50%;object-fit:cover;
-      border:3px solid ${isNew ? '#ff4444' : '#662222'};margin-bottom:10px;
-      ${isNew ? 'filter:drop-shadow(0 0 12px rgba(255,50,0,0.5));' : ''}
-    `;
+    img.className = 'portrait-villain';
     card.appendChild(img);
 
     // Name
     const name = document.createElement('div');
     name.textContent = villain.name;
     name.style.cssText = `
-      font-size:18px;font-weight:bold;color:${isNew ? '#ff4444' : '#884444'};
+      font-family:var(--font-display);font-size:14px;font-weight:700;
+      color:${isNew ? 'var(--red)' : '#664444'};
       letter-spacing:2px;margin-bottom:6px;
-      ${isNew ? 'text-shadow:0 0 10px rgba(255,50,0,0.4);' : ''}
+      ${isNew ? 'text-shadow:0 0 10px var(--red-glow);' : ''}
     `;
     card.appendChild(name);
 
@@ -388,43 +367,31 @@ function togglePause(): void {
     // Show pause overlay
     pauseOverlay = document.createElement('div');
     pauseOverlay.id = 'pause-overlay';
-    pauseOverlay.style.cssText = `
-      position:fixed;top:0;left:0;width:100%;height:100%;
-      display:flex;flex-direction:column;align-items:center;justify-content:center;
-      background:rgba(2,5,8,0.75);z-index:50;
-      font-family:Rajdhani,sans-serif;color:#fff;
-      pointer-events:auto;
-    `;
+    pauseOverlay.className = 'pause-overlay';
 
     const title = document.createElement('div');
     title.textContent = 'PAUSED';
-    title.style.cssText = `
-      font-size:clamp(32px,8vw,56px);font-weight:900;letter-spacing:6px;
-      font-family:Orbitron,sans-serif;
-      text-shadow:0 0 20px rgba(0,200,255,0.4);
-      margin-bottom:24px;
-    `;
+    title.className = 'title-hero';
+    title.style.marginBottom = '24px';
     pauseOverlay.appendChild(title);
 
     const hint = document.createElement('div');
     hint.textContent = 'Press ESC to resume';
-    hint.style.cssText = 'font-size:16px;color:#88aacc;letter-spacing:2px;margin-bottom:32px;';
+    hint.style.cssText = 'font-size:15px;color:var(--text-dim);letter-spacing:2px;margin-bottom:32px;';
     pauseOverlay.appendChild(hint);
 
     const quitBtn = document.createElement('button');
     quitBtn.textContent = 'QUIT TO TITLE';
-    quitBtn.style.cssText = `
-      padding:12px 32px;background:rgba(17,24,34,0.9);border:2px solid #ff4444;
-      color:#ff4444;font-size:16px;font-weight:bold;font-family:Rajdhani,sans-serif;
-      cursor:pointer;border-radius:4px;
-    `;
+    quitBtn.className = 'overlay-btn';
+    quitBtn.style.borderColor = 'var(--red)';
+    quitBtn.style.color = 'var(--red)';
+    quitBtn.style.width = 'auto';
+    quitBtn.style.padding = '12px 32px';
     quitBtn.addEventListener('click', () => {
       arena!.paused = false;
       removePauseOverlay();
       sceneManager.transition('title');
     });
-    quitBtn.addEventListener('mouseenter', () => { quitBtn.style.background = 'rgba(40,15,15,0.95)'; });
-    quitBtn.addEventListener('mouseleave', () => { quitBtn.style.background = 'rgba(17,24,34,0.9)'; });
     pauseOverlay.appendChild(quitBtn);
 
     overlayEl.appendChild(pauseOverlay);
@@ -446,8 +413,8 @@ function startCinematic(): void {
 }
 
 function startArena(): void {
-  const char = currentCharacter;
-  const playerColor = char === 'william' ? 0xccaa44 : COLORS.player;
+  const charConfig = CHARACTERS[currentCharacter];
+  const playerColor = charConfig?.color ?? COLORS.player;
 
   arena = createArenaState(
     bundle.scene,
@@ -474,37 +441,31 @@ function showHighScoreOverlay(): void {
   pilotImg.alt = currentCharacter;
   pilotImg.style.cssText = `
     width:clamp(80px,20vw,160px);height:clamp(80px,20vw,160px);border-radius:50%;object-fit:cover;
-    border:4px solid #ffcc00;margin-bottom:12px;
-    animation: heroGlow 1.5s ease-in-out infinite alternate;
+    border:3px solid var(--gold);margin-bottom:12px;
+    animation:heroGlow 1.5s ease-in-out infinite alternate;
   `;
   panel.appendChild(pilotImg);
 
   const title = document.createElement('div');
   title.textContent = 'YOU SAVED HUMANITY FROM EVIL!';
   title.style.cssText = `
-    font-size:clamp(18px,5vw,32px);font-weight:bold;color:#ffcc00;letter-spacing:2px;
-    margin-bottom:8px;text-align:center;
-    text-shadow:0 0 20px rgba(255,204,0,0.5);
-    animation: heroGlow 1.5s ease-in-out infinite alternate;
+    font-family:var(--font-display);font-size:clamp(16px,4vw,26px);font-weight:700;color:var(--gold);
+    letter-spacing:3px;margin-bottom:8px;text-align:center;
+    text-shadow:0 0 20px var(--gold-glow);
+    animation:heroGlow 1.5s ease-in-out infinite alternate;
   `;
   panel.appendChild(title);
 
   const subtitle = document.createElement('div');
   subtitle.textContent = 'GREAT JOB!';
-  subtitle.style.cssText = 'font-size:22px;color:#44ff44;margin-bottom:8px;font-weight:bold;letter-spacing:4px;';
+  subtitle.style.cssText = 'font-size:20px;color:var(--green);margin-bottom:8px;font-weight:700;letter-spacing:4px;';
   panel.appendChild(subtitle);
 
   const scoreText = document.createElement('div');
   scoreText.textContent = `FINAL SCORE: ${finalScore.toLocaleString()}`;
-  scoreText.style.cssText = 'font-size:20px;margin-bottom:24px;color:#fff;';
+  scoreText.className = 'score-display';
+  scoreText.style.marginBottom = '24px';
   panel.appendChild(scoreText);
-
-  // Inject glow animation
-  const style = document.createElement('style');
-  style.textContent = `
-    @keyframes heroGlow { from { filter:brightness(1); } to { filter:brightness(1.2); } }
-  `;
-  document.head.appendChild(style);
 
   // Play victory sounds
   if (arena?.sound) {
@@ -515,7 +476,8 @@ function showHighScoreOverlay(): void {
   // Name entry
   const nameLabel = document.createElement('div');
   nameLabel.textContent = 'ENTER YOUR NAME:';
-  nameLabel.style.cssText = 'font-size:14px;color:#aaa;margin-bottom:8px;';
+  nameLabel.className = 'section-label';
+  nameLabel.style.marginBottom = '8px';
   panel.appendChild(nameLabel);
 
   const nameInput = document.createElement('input');
@@ -523,9 +485,9 @@ function showHighScoreOverlay(): void {
   nameInput.maxLength = 12;
   nameInput.placeholder = 'YOUR NAME';
   nameInput.style.cssText = `
-    width:200px;padding:10px;background:rgba(17,24,34,0.9);
-    border:2px solid #ffcc00;color:#fff;font-size:18px;font-family:Rajdhani,sans-serif;
-    text-align:center;border-radius:4px;outline:none;
+    width:220px;padding:12px 16px;background:var(--panel-bg);
+    border:1px solid var(--gold);color:var(--text-bright);font-size:18px;font-family:var(--font-body);
+    text-align:center;border-radius:4px;outline:none;letter-spacing:2px;
   `;
   nameInput.addEventListener('input', () => {
     nameInput.value = nameInput.value.replace(/[^a-zA-Z0-9 ]/g, '').substring(0, 12);
@@ -551,11 +513,8 @@ function showHighScoreOverlay(): void {
 
   const submitBtn = document.createElement('button');
   submitBtn.textContent = 'SAVE SCORE';
-  submitBtn.style.cssText = `
-    margin-top:16px;padding:12px 32px;background:#ffcc00;color:#000;
-    font-size:16px;font-weight:bold;border:none;border-radius:4px;
-    cursor:pointer;font-family:Rajdhani,sans-serif;
-  `;
+  submitBtn.className = 'overlay-btn';
+  submitBtn.style.cssText = 'margin-top:16px;width:auto;padding:12px 32px;border-color:var(--gold);color:var(--gold);';
   submitBtn.addEventListener('click', submitScore);
   panel.appendChild(submitBtn);
 
@@ -573,8 +532,9 @@ function showGameOverOverlay(): void {
   villainImg.alt = 'Villain';
   villainImg.style.cssText = `
     width:clamp(100px,22vw,180px);height:clamp(100px,22vw,180px);border-radius:50%;object-fit:cover;
-    border:4px solid #ff4444;margin-bottom:12px;
-    animation: villainBounce 0.5s ease-out;
+    border:3px solid var(--red);margin-bottom:12px;
+    filter:drop-shadow(0 0 20px var(--red-glow));
+    animation:villainBounce 0.5s ease-out;
   `;
   panel.appendChild(villainImg);
 
@@ -585,36 +545,29 @@ function showGameOverOverlay(): void {
   const monologue = document.createElement('div');
   monologue.textContent = winLine;
   monologue.style.cssText = `
-    font-size:clamp(22px,6vw,42px);font-weight:bold;color:#ff4444;font-style:italic;
+    font-size:clamp(20px,5vw,36px);font-weight:700;color:var(--red);font-style:italic;
     letter-spacing:2px;margin-bottom:16px;text-align:center;
-    text-shadow:0 0 20px rgba(255,68,68,0.5);
-    animation: villainBounce 0.5s ease-out;
+    text-shadow:0 0 20px var(--red-glow);
+    animation:villainBounce 0.5s ease-out;
   `;
   panel.appendChild(monologue);
 
   const scoreText = document.createElement('div');
   scoreText.textContent = `SCORE: ${(arena?.score ?? 0).toLocaleString()}`;
-  scoreText.style.cssText = 'font-size:20px;margin-bottom:28px;color:#aaa;';
+  scoreText.className = 'score-display';
+  scoreText.style.cssText = 'margin-bottom:28px;opacity:0.7;';
   panel.appendChild(scoreText);
 
   const retryBtn = document.createElement('button');
   retryBtn.textContent = 'PLAY AGAIN';
-  retryBtn.style.cssText = `
-    padding:14px 40px;background:rgba(17,24,34,0.9);border:2px solid #ff4444;
-    color:#ff4444;font-size:18px;font-weight:bold;font-family:Rajdhani,sans-serif;
-    cursor:pointer;border-radius:4px;
-  `;
+  retryBtn.className = 'overlay-btn';
+  retryBtn.style.cssText = 'width:auto;padding:14px 40px;border-color:var(--red);color:var(--red);';
   retryBtn.addEventListener('click', () => {
     sceneManager.transition('title');
   });
   panel.appendChild(retryBtn);
 
-  // Inject animation
-  const style = document.createElement('style');
-  style.textContent = `
-    @keyframes villainBounce { from { transform:scale(1.3);opacity:0; } to { transform:scale(1);opacity:1; } }
-  `;
-  document.head.appendChild(style);
+  // villainBounce animation defined in index.html theme CSS
 
   // Play defeat + evil laugh sounds
   if (arena?.sound) {
@@ -642,7 +595,7 @@ function animate() {
     if (hud) {
       const isThrusting = keys['KeyE'] || arena.touchControls.getInput().thrust > 0;
       const playerSpeed = arena.player.velocity.length();
-      hud.update(arena.player, arena.enemies, arena.score, currentLevelIndex + 1, bundle.camera, isThrusting, playerSpeed);
+      hud.update(arena.player, arena.enemies, arena.score, currentLevelIndex + 1, bundle.camera, isThrusting, playerSpeed, arena.lockedTargetIndex);
       hud.updateTaunts(dt);
     }
 

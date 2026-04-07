@@ -46,19 +46,19 @@ export class HUD3D {
     // Inject scoped styles
     const style = document.createElement('style');
     style.textContent = `
-      #hud { position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:20;font-family:Rajdhani,sans-serif; }
+      #hud { position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:20;font-family:var(--font-body); }
       .hud-top-left { position:absolute;top:16px;left:16px; }
-      .hud-bar-container { width:clamp(140px,25vw,200px);height:14px;background:rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.2);border-radius:2px;margin-bottom:6px;overflow:hidden; }
-      .hud-bar-fill { height:100%;transition:width 0.15s ease-out; }
-      .hud-bar-label { font-size:clamp(9px,1.5vw,10px);color:#aaa;text-transform:uppercase;letter-spacing:1px;margin-bottom:2px; }
-      .hud-shield-fill { background:linear-gradient(90deg,#006688,#00ccff); }
-      .hud-hull-fill { background:linear-gradient(90deg,#226622,#44ff44); }
-      .hud-top-center { position:absolute;top:12px;left:50%;transform:translateX(-50%);font-size:14px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:4px;font-family:Orbitron,sans-serif; }
+      .hud-bar-container { width:clamp(140px,25vw,200px);height:12px;background:rgba(0,0,0,0.5);border:1px solid rgba(60,100,160,0.15);border-radius:2px;margin-bottom:6px;overflow:hidden; }
+      .hud-bar-fill { height:100%;transition:width 0.15s ease-out;border-radius:1px; }
+      .hud-bar-label { font-size:clamp(9px,1.5vw,10px);color:var(--text-dim,#5a6e86);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:2px;font-weight:500; }
+      .hud-shield-fill { background:linear-gradient(90deg,#005577,#00bbee); }
+      .hud-hull-fill { background:linear-gradient(90deg,#1a6622,#36ff6e); }
+      .hud-top-center { position:absolute;top:12px;left:50%;transform:translateX(-50%);font-size:13px;font-weight:700;color:rgba(180,200,220,0.25);letter-spacing:5px;font-family:var(--font-display); }
       .hud-bottom-left { position:absolute;bottom:clamp(8px,3vh,20px);left:16px;font-size:14px;color:#fff;z-index:25; }
-      .hud-score { font-size:18px;font-weight:bold;color:#ffdd00;text-shadow:0 0 10px rgba(255,220,0,0.8),0 0 20px rgba(255,180,0,0.4); }
-      .hud-targets { font-size:13px;color:#ddd;margin-top:4px;text-shadow:0 0 6px rgba(200,200,200,0.6); }
-      .hud-level { font-size:12px;color:#bbddff;margin-top:4px;text-shadow:0 0 6px rgba(140,180,220,0.6); }
-      .hud-bottom-right { position:absolute;bottom:clamp(8px,3vh,20px);right:16px;font-size:14px;font-weight:bold;color:#00ff66;letter-spacing:1px;text-shadow:0 0 10px rgba(0,255,100,0.8),0 0 20px rgba(0,200,80,0.4);z-index:25; }
+      .hud-score { font-size:17px;font-weight:700;color:#ffd042;text-shadow:0 0 8px rgba(255,208,66,0.6),0 0 16px rgba(255,180,0,0.2);font-family:var(--font-display);letter-spacing:1px; }
+      .hud-targets { font-size:13px;color:var(--text-primary,#d0dae8);margin-top:4px;text-shadow:0 0 4px rgba(200,200,200,0.3); }
+      .hud-level { font-size:15px;font-weight:600;color:rgba(140,180,220,0.8);margin-top:4px;text-shadow:0 0 4px rgba(140,180,220,0.3);letter-spacing:1px; }
+      .hud-bottom-right { position:absolute;bottom:clamp(8px,3vh,20px);right:16px;font-size:12px;font-weight:700;color:#36ff6e;letter-spacing:3px;text-shadow:0 0 8px rgba(54,255,110,0.4);z-index:25;font-family:var(--font-display);opacity:0.6; }
 
       /* ── Cockpit frame overlay ── */
       .cockpit-frame {
@@ -74,14 +74,14 @@ export class HUD3D {
           rgba(18,26,38,0.5) 65%,
           transparent 100%
         );
-        border-top:1px solid rgba(80,140,200,0.12);
+        border-top:1px solid rgba(40,80,140,0.08);
       }
       .cockpit-frame::before {
         content:'';
         position:absolute;
         top:0;left:0;right:0;
         height:1px;
-        background:linear-gradient(90deg, transparent 5%, rgba(80,180,255,0.15) 30%, rgba(80,180,255,0.25) 50%, rgba(80,180,255,0.15) 70%, transparent 95%);
+        background:linear-gradient(90deg, transparent 10%, rgba(60,120,200,0.08) 30%, rgba(60,120,200,0.12) 50%, rgba(60,120,200,0.08) 70%, transparent 90%);
       }
       .cockpit-frame::after {
         content:'';
@@ -106,14 +106,15 @@ export class HUD3D {
       .taunt-popup {
         position:fixed;top:80px;right:20px;
         max-width:260px;padding:10px 16px;
-        background:rgba(40,10,10,0.85);
-        border:2px solid #ff4444;border-radius:8px;
+        background:rgba(30,6,6,0.8);
+        border:1px solid rgba(255,59,59,0.3);border-radius:6px;
         color:#ff8866;font-size:14px;font-style:italic;
-        font-family:Rajdhani,sans-serif;letter-spacing:0.5px;
+        font-family:var(--font-body);letter-spacing:0.5px;
         z-index:25;pointer-events:none;
         opacity:0;transition:opacity 0.3s ease-out;
-        text-shadow:0 0 6px rgba(255,50,0,0.3);
+        text-shadow:0 0 6px rgba(255,50,0,0.2);
         line-height:1.4;
+        backdrop-filter:blur(8px);
       }
       .taunt-popup.visible { opacity:1; }
 
@@ -166,11 +167,11 @@ export class HUD3D {
     const pilotImg = document.createElement('img');
     pilotImg.src = `/portraits/${currentCharacter}.jpg`;
     pilotImg.alt = currentCharacter;
-    pilotImg.style.cssText = 'width:60px;height:60px;border-radius:50%;object-fit:cover;border:2px solid #88aacc;';
+    pilotImg.style.cssText = 'width:56px;height:56px;border-radius:50%;object-fit:cover;border:2px solid rgba(100,150,200,0.3);';
     pilotRow.appendChild(pilotImg);
     const pilotName = document.createElement('div');
     pilotName.textContent = currentCharacter.toUpperCase();
-    pilotName.style.cssText = 'font-size:12px;font-weight:bold;color:#88aacc;letter-spacing:1px;';
+    pilotName.style.cssText = 'font-size:11px;font-weight:600;color:rgba(136,170,204,0.7);letter-spacing:2px;';
     pilotRow.appendChild(pilotName);
     topLeft.appendChild(pilotRow);
 
@@ -209,6 +210,25 @@ export class HUD3D {
     // Bottom-right: branding
     this.container.appendChild(el('div', { class: 'hud-bottom-right' }, 'PRIDAY LABS'));
 
+    // Desktop controls hint (hidden on touch devices)
+    const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    if (!isTouchDevice) {
+      const controls = el('div', {
+        'position': 'absolute',
+        'bottom': 'clamp(8px,3vh,20px)',
+        'left': '50%',
+        'transform': 'translateX(-50%)',
+        'font-size': '14px',
+        'color': 'rgba(160,190,220,0.5)',
+        'letter-spacing': '1.5px',
+        'white-space': 'nowrap',
+        'z-index': '25',
+        'font-family': 'var(--font-body)',
+        'font-weight': '500',
+      }, 'E = Thruster  /  D = Reverse  /  F = Toggle Enemy');
+      this.container.appendChild(controls);
+    }
+
     // ── Cockpit frame — cinematic dark gradient with subtle struts ──
     const frame = document.createElement('div');
     frame.className = 'cockpit-frame';
@@ -240,7 +260,7 @@ export class HUD3D {
 
   private updateCounter = 0;
 
-  update(player: Ship3D, enemies: Ship3D[], score: number, level: number, camera?: THREE.PerspectiveCamera, thrusting = false, speed = 0): void {
+  update(player: Ship3D, enemies: Ship3D[], score: number, level: number, camera?: THREE.PerspectiveCamera, thrusting = false, speed = 0, lockedTargetIndex = -1): void {
     this.updateCounter++;
     this.shieldBar.style.width = `${player.shieldPct * 100}%`;
     this.hullBar.style.width = `${(1 - player.damagePct) * 100}%`;
@@ -270,13 +290,13 @@ export class HUD3D {
 
     // ── Target indicators — throttle to every 3rd frame for performance ──
     if (this.updateCounter % 3 === 0) {
-      this.updateTargetIndicators(player, enemies, camera);
+      this.updateTargetIndicators(player, enemies, camera, lockedTargetIndex);
     }
   }
 
   private enemyHUDs: HTMLDivElement[] = [];
 
-  private updateTargetIndicators(player: Ship3D, enemies: Ship3D[], camera?: THREE.PerspectiveCamera): void {
+  private updateTargetIndicators(player: Ship3D, enemies: Ship3D[], camera?: THREE.PerspectiveCamera, lockedTargetIndex = -1): void {
     // Remove old HUDs
     for (const m of this.enemyHUDs) m.remove();
     this.enemyHUDs = [];
@@ -292,7 +312,7 @@ export class HUD3D {
 
       // Project enemy position to screen (offset well above ship)
       const labelPos = enemy.position.clone();
-      labelPos.y += 34; // well above the ship so portrait clears the model
+      labelPos.y += 38; // above the ship — close enough to associate, clear enough to read
       const pos = labelPos.project(camera);
 
       const sx = (pos.x * 0.5 + 0.5) * w;
@@ -361,7 +381,7 @@ export class HUD3D {
 
         const label = document.createElement('div');
         label.textContent = `${ENEMY_NAMES[i] ?? `ENEMY ${i + 1}`} [${dist}m]`;
-        label.style.cssText = 'font-size:10px;color:#ff4444;font-family:Rajdhani,sans-serif;white-space:nowrap;';
+        label.style.cssText = 'font-size:10px;color:#ff4444;font-family:var(--font-body);white-space:nowrap;';
         labelRow.appendChild(label);
         tracker.appendChild(labelRow);
 
@@ -369,6 +389,11 @@ export class HUD3D {
         this.enemyHUDs.push(tracker);
         continue;
       }
+
+      const isLocked = i === lockedTargetIndex;
+      const borderColor = isLocked ? '#00d4ff' : '#ff4444';
+      const glowColor = isLocked ? 'rgba(0,212,255,0.6)' : 'rgba(255,0,0,0.5)';
+      const textColor = isLocked ? '#00d4ff' : '#ff4444';
 
       const hud = document.createElement('div');
       hud.style.cssText = `
@@ -381,22 +406,34 @@ export class HUD3D {
       if (portraitFile) {
         const img = document.createElement('img');
         img.src = `/portraits/${portraitFile}`;
-        img.style.cssText = 'width:54px;height:54px;border-radius:50%;object-fit:cover;border:2px solid #ff4444;filter:drop-shadow(0 0 6px rgba(255,0,0,0.5));display:block;margin:0 auto;';
+        img.style.cssText = `width:54px;height:54px;border-radius:50%;object-fit:cover;border:2px solid ${borderColor};filter:drop-shadow(0 0 6px ${glowColor});display:block;margin:0 auto;`;
         hud.appendChild(img);
+      }
+
+      // Lock indicator bracket
+      if (isLocked) {
+        const lockTag = document.createElement('div');
+        lockTag.textContent = 'LOCKED';
+        lockTag.style.cssText = `
+          font-size:9px;font-weight:700;color:#00d4ff;font-family:var(--font-display);
+          letter-spacing:2px;margin-bottom:2px;
+          text-shadow:0 0 6px rgba(0,212,255,0.5);
+        `;
+        hud.insertBefore(lockTag, hud.firstChild);
       }
 
       // Health bar directly under portrait
       const barBg = document.createElement('div');
       barBg.style.cssText = `
         width:54px;height:6px;background:rgba(0,0,0,0.7);
-        border:1px solid #ff4444;border-radius:2px;overflow:hidden;
+        border:1px solid ${borderColor};border-radius:2px;overflow:hidden;
         margin:4px auto 0;
       `;
       const barFill = document.createElement('div');
       const hpPct = Math.max(0, (1 - enemy.damagePct) * 100);
       barFill.style.cssText = `
         width:${hpPct}%;height:100%;
-        background:linear-gradient(90deg, #cc0000, #ff4444);
+        background:linear-gradient(90deg, ${isLocked ? '#0088aa' : '#cc0000'}, ${isLocked ? '#00d4ff' : '#ff4444'});
         transition:width 0.1s ease-out;
       `;
       barBg.appendChild(barFill);
@@ -407,9 +444,9 @@ export class HUD3D {
       const label = document.createElement('div');
       label.textContent = `${ENEMY_NAMES[i] ?? `ENEMY ${i + 1}`} [${onScreenDist}m]`;
       label.style.cssText = `
-        font-size:10px;font-weight:bold;color:#ff4444;font-family:Rajdhani,sans-serif;
+        font-size:10px;font-weight:bold;color:${textColor};font-family:var(--font-body);
         letter-spacing:1px;margin-top:2px;
-        text-shadow:0 0 4px rgba(255,0,0,0.5);
+        text-shadow:0 0 4px ${glowColor};
       `;
       hud.appendChild(label);
 

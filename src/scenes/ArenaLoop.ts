@@ -58,6 +58,8 @@ export interface ArenaState {
   paused: boolean;
   // Whether slow-mo kill shot has already been triggered
   slowMoFired: boolean;
+  // Target lock — index into enemies array, -1 = no lock
+  lockedTargetIndex: number;
 }
 
 export function createArenaState(
@@ -207,6 +209,7 @@ export function createArenaState(
     spawnTauntFired: false,
     paused: false,
     slowMoFired: false,
+    lockedTargetIndex: -1,
   };
 }
 
@@ -258,12 +261,42 @@ export function updateArena(
     thrust: combinedThrust,
   };
 
-  // ── Player weapons — auto-aim at nearest alive enemy ──
+  // ── Target lock — F key cycles through on-screen enemies ──
+  const cam = state.camera;
+  const visibleIndices: number[] = [];
+  for (let i = 0; i < enemies.length; i++) {
+    if (!enemies[i].alive) continue;
+    const proj = enemies[i].position.clone().project(cam);
+    if (proj.z < 1 && proj.x > -1.2 && proj.x < 1.2 && proj.y > -1.2 && proj.y < 1.2) {
+      visibleIndices.push(i);
+    }
+  }
+
+  if (keys['KeyF']) {
+    keys['KeyF'] = false; // consume the press so it doesn't repeat
+    if (visibleIndices.length > 0) {
+      const curPos = visibleIndices.indexOf(state.lockedTargetIndex);
+      state.lockedTargetIndex = visibleIndices[(curPos + 1) % visibleIndices.length];
+    }
+  }
+
+  // Clear lock if target is dead or no longer on screen
+  if (state.lockedTargetIndex >= 0) {
+    const locked = enemies[state.lockedTargetIndex];
+    if (!locked || !locked.alive || !visibleIndices.includes(state.lockedTargetIndex)) {
+      state.lockedTargetIndex = -1;
+    }
+  }
+
+  // Auto-lock first visible enemy if no lock set
+  if (state.lockedTargetIndex < 0 && visibleIndices.length > 0) {
+    state.lockedTargetIndex = visibleIndices[0];
+  }
+
+  // ── Player weapons — fire at locked target ──
   if (keys['Space'] || touch.fire) {
-    const nearestEnemy = enemies
-      .filter(e => e.alive)
-      .sort((a, b) => a.position.distanceTo(player.position) - b.position.distanceTo(player.position))[0];
-    if (tryFireWeapon(player, boltPool, now, undefined, nearestEnemy)) {
+    const target = state.lockedTargetIndex >= 0 ? enemies[state.lockedTargetIndex] : undefined;
+    if (tryFireWeapon(player, boltPool, now, undefined, target)) {
       state.sound.playerShoot();
     }
   }
@@ -524,7 +557,7 @@ export function updateArena(
 
   // ── Level environment update ──
   if (state.environment) {
-    state.environment.update(effectiveDt, now, player, enemies, boltPool);
+    state.environment.update(effectiveDt, now, player, enemies, boltPool, state.camera, explosions);
   }
 
   // ── Explosions ──

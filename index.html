@@ -13,11 +13,31 @@
   <link rel="apple-touch-icon" href="favicon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Chakra+Petch:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
+    :root {
+      --void: #04080f;
+      --deep: #0a1220;
+      --panel-bg: rgba(6, 14, 26, 0.88);
+      --panel-hover: rgba(12, 24, 42, 0.92);
+      --border-subtle: rgba(40, 80, 140, 0.15);
+      --border-hover: rgba(0, 180, 255, 0.3);
+      --cyan: #00d4ff;
+      --cyan-glow: rgba(0, 212, 255, 0.15);
+      --gold: #ffd042;
+      --gold-glow: rgba(255, 208, 66, 0.15);
+      --red: #ff3b3b;
+      --red-glow: rgba(255, 59, 59, 0.15);
+      --green: #36ff6e;
+      --text-primary: #d0dae8;
+      --text-dim: #5a6e86;
+      --text-bright: #f0f4fa;
+      --font-display: 'Orbitron', monospace;
+      --font-body: 'Chakra Petch', sans-serif;
+    }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body {
-      background: #0a1220;
+      background: var(--void);
       width: 100%;
       height: 100vh;
       height: 100dvh;
@@ -28,8 +48,9 @@
       user-select: none;
       -webkit-tap-highlight-color: transparent;
       overscroll-behavior: none;
-      font-family: 'Rajdhani', 'Arial', sans-serif;
-      color: #ffffff;
+      font-family: var(--font-body);
+      color: var(--text-primary);
+      -webkit-font-smoothing: antialiased;
     }
     body {
       position: fixed;
@@ -69,6 +90,235 @@
       z-index: 15;
       display: none;
     }
+
+    /* ── Game Overlay Panels ── */
+    .game-overlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      background:
+        radial-gradient(ellipse at 50% 30%, rgba(0, 60, 120, 0.12) 0%, transparent 60%),
+        rgba(4, 8, 15, 0.92);
+      backdrop-filter: blur(12px) saturate(120%);
+      z-index: 30;
+      font-family: var(--font-body);
+      color: var(--text-primary);
+      pointer-events: auto;
+      overflow-y: auto;
+      padding: 20px 16px;
+    }
+    .game-overlay::before {
+      content: '';
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: repeating-linear-gradient(
+        0deg, transparent 0px, transparent 3px,
+        rgba(0, 20, 50, 0.025) 3px, rgba(0, 20, 50, 0.025) 4px
+      );
+      pointer-events: none; z-index: 0;
+    }
+    .game-overlay > * { position: relative; z-index: 1; }
+
+    /* ── Title ── */
+    .title-hero {
+      font-family: var(--font-display);
+      font-size: clamp(28px, 7vw, 56px);
+      font-weight: 900;
+      letter-spacing: 8px;
+      margin-bottom: 12px;
+      text-align: center;
+      background: linear-gradient(180deg, #ffffff 10%, var(--cyan) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      filter: drop-shadow(0 0 40px var(--cyan-glow));
+      animation: fadeInUp 0.6s ease-out both;
+    }
+    .section-label {
+      font-size: clamp(13px, 2.5vw, 16px);
+      letter-spacing: 3px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      animation: fadeIn 0.5s 0.2s ease-out both;
+    }
+
+    /* ── Buttons ── */
+    .game-overlay .overlay-btn {
+      display: block;
+      width: min(360px, 85vw);
+      padding: 12px 20px;
+      margin: 5px 0;
+      background: var(--panel-bg);
+      border: 1px solid var(--border-subtle);
+      font-size: clamp(14px, 3.5vw, 17px);
+      font-weight: 600;
+      font-family: var(--font-body);
+      cursor: pointer;
+      border-radius: 4px;
+      text-align: center;
+      letter-spacing: 1.5px;
+      transition: all 0.25s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    .game-overlay .overlay-btn::after {
+      content: '';
+      position: absolute; top: 0; left: -100%; width: 100%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.03), transparent);
+      transition: left 0.5s ease;
+    }
+    .game-overlay .overlay-btn:hover::after { left: 100%; }
+    .game-overlay .overlay-btn:hover {
+      background: var(--panel-hover);
+      transform: translateY(-1px);
+      filter: brightness(1.15);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    }
+    .game-overlay .overlay-btn:active {
+      transform: translateY(0);
+      filter: brightness(1);
+    }
+    .game-overlay .btn-desc {
+      font-size: 11px;
+      color: var(--text-dim);
+      font-weight: 400;
+      margin-top: 4px;
+      letter-spacing: 0.5px;
+    }
+
+    /* ── Character Cards ── */
+    .game-overlay .char-card {
+      width: min(280px, 42vw);
+      padding: 20px 24px;
+      background: var(--panel-bg);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-primary);
+      font-family: var(--font-body);
+      cursor: pointer;
+      border-radius: 8px;
+      text-align: center;
+      transition: all 0.3s ease;
+    }
+    .game-overlay .char-card:hover {
+      background: var(--panel-hover);
+      transform: translateY(-4px);
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4), 0 0 20px var(--cyan-glow);
+    }
+    .portrait-hero {
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid var(--border-subtle);
+      transition: border-color 0.3s, filter 0.3s;
+    }
+    .char-card:hover .portrait-hero {
+      border-color: var(--border-hover);
+      filter: brightness(1.1);
+    }
+
+    /* ── Villain Cards ── */
+    .villain-card {
+      display: flex; flex-direction: column; align-items: center;
+      padding: 16px 20px;
+      background: rgba(25, 6, 6, 0.7);
+      border: 1px solid rgba(255, 59, 59, 0.15);
+      border-radius: 8px;
+      backdrop-filter: blur(8px);
+    }
+    .villain-card.new-threat {
+      border-color: rgba(255, 59, 59, 0.4);
+      background: rgba(35, 8, 8, 0.8);
+      animation: threatPulse 2.5s ease-in-out infinite;
+    }
+    .portrait-villain {
+      border-radius: 50%;
+      object-fit: cover;
+      width: clamp(120px, 30vw, 200px);
+      height: clamp(120px, 30vw, 200px);
+      border: 2px solid rgba(255, 59, 59, 0.2);
+      margin-bottom: 10px;
+    }
+    .villain-card.new-threat .portrait-villain {
+      border-color: var(--red);
+      filter: drop-shadow(0 0 12px var(--red-glow));
+    }
+
+    /* ── Inputs ── */
+    .game-overlay input[type="text"] {
+      padding: 12px 16px;
+      background: var(--panel-bg);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-bright);
+      font-size: 18px;
+      font-family: var(--font-body);
+      text-align: center;
+      border-radius: 4px;
+      outline: none;
+      letter-spacing: 2px;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .game-overlay input[type="text"]:focus {
+      border-color: var(--gold);
+      box-shadow: 0 0 15px var(--gold-glow);
+    }
+    .game-overlay input[type="text"]::placeholder { color: var(--text-dim); }
+
+    /* ── Score ── */
+    .score-display {
+      font-family: var(--font-display);
+      font-size: clamp(18px, 4vw, 28px);
+      color: var(--gold);
+      letter-spacing: 2px;
+      text-shadow: 0 0 20px var(--gold-glow);
+    }
+    .hs-title {
+      font-size: 13px; color: var(--gold);
+      letter-spacing: 3px; margin-top: 30px; text-transform: uppercase;
+    }
+    .hs-row {
+      font-size: 12px; color: var(--text-dim);
+      margin-top: 4px; letter-spacing: 1px;
+    }
+
+    /* ── Brand Footer ── */
+    .brand-footer {
+      position: absolute; bottom: 16px; right: 16px;
+      font-family: var(--font-display);
+      font-size: 12px; font-weight: 700;
+      color: var(--green); letter-spacing: 3px;
+      opacity: 0.6;
+      text-shadow: 0 0 10px rgba(54, 255, 110, 0.2);
+    }
+
+    /* ── Pause ── */
+    .pause-overlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      background:
+        radial-gradient(ellipse at 50% 40%, rgba(0, 40, 80, 0.1) 0%, transparent 60%),
+        rgba(4, 8, 15, 0.8);
+      backdrop-filter: blur(8px);
+      z-index: 50;
+      font-family: var(--font-body);
+      color: var(--text-primary);
+      pointer-events: auto;
+    }
+
+    /* ── Animations ── */
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes fadeInUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes scaleIn { from { transform: scale(0.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    @keyframes threatPulse {
+      0%, 100% { box-shadow: 0 0 15px rgba(255, 40, 0, 0.1); }
+      50% { box-shadow: 0 0 30px rgba(255, 40, 0, 0.2); border-color: rgba(255, 59, 59, 0.5); }
+    }
+    @keyframes heroGlow {
+      from { filter: brightness(1) drop-shadow(0 0 8px var(--gold-glow)); }
+      to { filter: brightness(1.15) drop-shadow(0 0 16px var(--gold-glow)); }
+    }
+    @keyframes villainBounce { from { transform: scale(1.2); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 3px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(0, 180, 255, 0.15); border-radius: 2px; }
   </style>
 </head>
 <body>

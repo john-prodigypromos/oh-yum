@@ -33,9 +33,9 @@ export const WEAPONS = {
 export const SHIP = {
   PLAYER_HULL: 100,
   PLAYER_SHIELD: 50,
-  SHIELD_REGEN_DELAY: 5000,
-  SHIELD_REGEN_RATE: 2,
-  IFRAMES: 100,  // short i-frames so rapid fire works
+  SHIELD_REGEN_DELAY: 3000,
+  SHIELD_REGEN_RATE: 4,
+  IFRAMES: 150,  // short i-frames so rapid fire works
   KNOCKBACK_FORCE: 200,
   HITBOX_RADIUS: 20,  // very generous — ensures fast bolts register
 } as const;

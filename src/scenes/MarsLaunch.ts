@@ -49,14 +49,14 @@ export function createMarsLaunch(
   camera: THREE.PerspectiveCamera,
 ): MarsLaunchState {
   // ── Background ──
-  scene.background = new THREE.Color(0xc2886a);
+  scene.background = new THREE.Color(0xcc2200); // vivid Mars red sky
 
   // ── Player ship (hidden — cockpit view) ──
   const diff = DIFFICULTY[currentDifficulty];
   const charColor = CHARACTERS[currentCharacter]?.color ?? COLORS.player;
   const playerGeo = createPlayerShipGeometry();
   applyMaterials(playerGeo, createPlayerMaterials(charColor));
-  playerGeo.position.set(0, 2, 0);
+  playerGeo.position.set(0, 2, -8000); // deep inside the canyon (near the far end)
   playerGeo.visible = false;
   scene.add(playerGeo);
 
@@ -64,7 +64,7 @@ export function createMarsLaunch(
     group: playerGeo,
     maxHull: diff.playerHull,
     maxShield: diff.playerShield,
-    speedMult: 1.0,
+    speedMult: 100.0,  // rocket launch — 100x thrust
     rotationMult: 1.0,
     isPlayer: true,
   });
@@ -73,9 +73,20 @@ export function createMarsLaunch(
   const canyon = createCanyonTerrain(scene);
   scene.add(canyon.group);
 
-  // ── Dust particles (500 points) ──
+  // ── Dust particles — soft circular texture ──
+  const dustTexCanvas = document.createElement('canvas');
+  dustTexCanvas.width = 32; dustTexCanvas.height = 32;
+  const dCtx = dustTexCanvas.getContext('2d')!;
+  const grad = dCtx.createRadialGradient(16, 16, 0, 16, 16, 16);
+  grad.addColorStop(0, 'rgba(180,100,60,0.5)');
+  grad.addColorStop(0.5, 'rgba(180,100,60,0.15)');
+  grad.addColorStop(1, 'rgba(180,100,60,0)');
+  dCtx.fillStyle = grad;
+  dCtx.fillRect(0, 0, 32, 32);
+  const dustTex = new THREE.CanvasTexture(dustTexCanvas);
+
   const dustGeo = new THREE.BufferGeometry();
-  const dustCount = 500;
+  const dustCount = 300;
   const dustPositions = new Float32Array(dustCount * 3);
   for (let i = 0; i < dustCount; i++) {
     dustPositions[i * 3]     = (Math.random() - 0.5) * 160;
@@ -84,11 +95,12 @@ export function createMarsLaunch(
   }
   dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPositions, 3));
   const dustMat = new THREE.PointsMaterial({
-    color: 0xccaa88,
-    size: 0.8,
+    map: dustTex,
+    size: 2.5,
     transparent: true,
-    opacity: 0.4,
+    opacity: 0.35,
     depthWrite: false,
+    sizeAttenuation: true,
   });
   const dustParticles = new THREE.Points(dustGeo, dustMat);
   scene.add(dustParticles);

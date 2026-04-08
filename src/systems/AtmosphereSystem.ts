@@ -41,25 +41,26 @@ export interface AtmosphereConfig {
 // ── Mars Configuration ────────────────────────────────────
 
 export const MARS_ATMOSPHERE: AtmosphereConfig = {
-  maxAltitude: 2000,
-  surfaceGravity: 3.7,
-  surfaceDrag: 0.4,
-  surfaceSpeedCap: 60,
-  spaceSpeedCap: 100,
+  maxAltitude: 20000,
+  surfaceGravity: 0.3,
+  surfaceDrag: 0.01,
+  surfaceSpeedCap: 50000,
+  spaceSpeedCap: 50000,
 
   skyColors: [
-    { altitude: 0.00, color: new THREE.Color(0xc2886a) }, // dusty salmon surface
-    { altitude: 0.20, color: new THREE.Color(0x8b4a3c) }, // deep red-brown
-    { altitude: 0.45, color: new THREE.Color(0x3d1a2e) }, // dark purple
-    { altitude: 0.75, color: new THREE.Color(0x0d050f) }, // near black
+    { altitude: 0.00, color: new THREE.Color(0xcc2200) }, // vivid Mars red
+    { altitude: 0.15, color: new THREE.Color(0xaa1800) }, // bright crimson
+    { altitude: 0.35, color: new THREE.Color(0x6a0e00) }, // deep red
+    { altitude: 0.55, color: new THREE.Color(0x350600) }, // dark red
+    { altitude: 0.80, color: new THREE.Color(0x120200) }, // near black red
     { altitude: 1.00, color: new THREE.Color(0x010208) }, // space black
   ],
 
-  fogColorSurface: new THREE.Color(0xc2886a),
+  fogColorSurface: new THREE.Color(0xcc2200),
   fogColorHigh:    new THREE.Color(0x010208),
 
-  dustCeiling: 600,
-  iceBand: [800, 1400],
+  dustCeiling: 3000,
+  iceBand: [6000, 14000],
 };
 
 // ── Earth Configuration ───────────────────────────────────

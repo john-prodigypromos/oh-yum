@@ -41,7 +41,7 @@ export function createRenderer(canvas: HTMLCanvasElement): RendererBundle {
   scene.background = new THREE.Color(0x010208); // near-black with barely perceptible blue
 
   // ── Camera ──
-  const camera = new THREE.PerspectiveCamera(75, w / h, 0.1, 10000);
+  const camera = new THREE.PerspectiveCamera(75, w / h, 0.1, 300000);
   camera.position.set(0, 0, 0);
 
   // ── Post-Processing ──

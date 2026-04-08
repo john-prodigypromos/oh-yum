@@ -6,6 +6,58 @@
 import * as THREE from 'three';
 import { fbm3D, ridgedNoise3D, valueNoise3D } from '../systems/EnvironmentLoader';
 
+// ── Procedural rock normal map — adds micro-cracks, grain, pitting to surfaces ──
+function createRockNormalMap(size: number, seed: number): THREE.CanvasTexture {
+  const c = document.createElement('canvas');
+  c.width = size; c.height = size;
+  const ctx = c.getContext('2d')!;
+  const img = ctx.createImageData(size, size);
+  const d = img.data;
+
+  for (let py = 0; py < size; py++) {
+    for (let px = 0; px < size; px++) {
+      const idx = (py * size + px) * 4;
+      const u = px / size, v = py / size;
+      const eps = 1.0 / size;
+
+      // Multi-scale height: large cracks + fine grain + micro pitting
+      const h = (s: number, t: number) => {
+        const crack = valueNoise3D(s * 15 + seed, t * 15, seed * 0.3) * 0.5;
+        const grain = valueNoise3D(s * 60 + seed * 2, t * 60, seed * 0.7) * 0.2;
+        const pit = valueNoise3D(s * 120 + seed * 3, t * 120, seed) * 0.1;
+        return crack + grain + pit;
+      };
+
+      // Central difference for normal
+      const hL = h(u - eps, v), hR = h(u + eps, v);
+      const hD = h(u, v - eps), hU = h(u, v + eps);
+      let nx = (hL - hR) * 4.0;
+      let ny = (hD - hU) * 4.0;
+      let nz = 1.0;
+      const len = Math.sqrt(nx * nx + ny * ny + nz * nz);
+      nx /= len; ny /= len; nz /= len;
+
+      d[idx]     = Math.round((nx * 0.5 + 0.5) * 255);
+      d[idx + 1] = Math.round((ny * 0.5 + 0.5) * 255);
+      d[idx + 2] = Math.round((nz * 0.5 + 0.5) * 255);
+      d[idx + 3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  tex.needsUpdate = true;
+  return tex;
+}
+
+// Shared normal map instance (created once)
+let _rockNormalMap: THREE.CanvasTexture | null = null;
+function getRockNormalMap(): THREE.CanvasTexture {
+  if (!_rockNormalMap) _rockNormalMap = createRockNormalMap(512, 77);
+  return _rockNormalMap;
+}
+
 // ── Types ────────────────────────────────────────────────
 
 export interface CanyonConfig {
@@ -23,10 +75,10 @@ export interface CanyonTerrain {
 }
 
 const DEFAULT_CONFIG: CanyonConfig = {
-  length: 2000,
-  baseWidth: 80,
-  topWidth: 200,
-  wallHeight: 500,
+  length: 20000,
+  baseWidth: 120,
+  topWidth: 300,
+  wallHeight: 1500,
 };
 
 // ── Colour helpers ───────────────────────────────────────
@@ -109,32 +161,38 @@ export function createWall(
     pos.setY(i, rawY);
     pos.setZ(i, rawZ);
 
-    // ── Vertex colour: sediment banding + dust + iron ──
-    // Sediment stripes (horizontal bands in geological layers)
-    const stripe = Math.sin(tY * 18 + fbm3D(tZ * 2, tY * 3, seed, 3) * 2.5);
-    const bandMix = stripe * 0.5 + 0.5; // 0..1
+    // ── Vertex colour: dirty sandstone with iron oxide staining ──
+    const stripe = Math.sin(tY * 22 + fbm3D(tZ * 2, tY * 3, seed, 3) * 3.0);
+    const bandMix = stripe * 0.5 + 0.5;
 
-    // Base Mars iron-red
-    let r = 0.55 + bandMix * 0.08;
-    let g = 0.28 + bandMix * 0.04;
-    let b = 0.15 + bandMix * 0.02;
+    // Base: dirty tan sandstone (not salmon/pink)
+    let r = 0.48 + bandMix * 0.10;
+    let g = 0.34 + bandMix * 0.06;
+    let b = 0.22 + bandMix * 0.03;
 
-    // Dark iron-oxide bands (near-black)
-    const ironBand = Math.pow(Math.max(0, Math.sin(tY * 9 + seed * 3.7) * 0.5 + 0.5 - 0.7) / 0.3, 2);
-    r -= ironBand * 0.22;
-    g -= ironBand * 0.14;
-    b -= ironBand * 0.06;
+    // Dark iron-oxide staining (rusty brown-red streaks)
+    const ironBand = Math.pow(Math.max(0, Math.sin(tY * 11 + seed * 3.7) * 0.5 + 0.5 - 0.6) / 0.4, 2);
+    r += ironBand * 0.08;
+    g -= ironBand * 0.10;
+    b -= ironBand * 0.08;
 
-    // Lighter dust accumulation near the top
-    const dustTop = tY * tY * 0.18;
+    // Darker grime in crevices (low areas where displacement is negative)
+    const grimeFactor = Math.max(0, -totalDisp / 30) * 0.15;
+    r -= grimeFactor;
+    g -= grimeFactor;
+    b -= grimeFactor * 0.8;
+
+    // Lighter dust/weathering near the top
+    const dustTop = tY * tY * 0.12;
     r += dustTop;
-    g += dustTop * 0.7;
-    b += dustTop * 0.55;
+    g += dustTop * 0.8;
+    b += dustTop * 0.6;
 
     // Fine noise variation
     const noiseColor = valueNoise3D(nx * 4, ny * 4, nz) * 0.06;
     r += noiseColor;
-    g += noiseColor * 0.5;
+    g += noiseColor * 0.7;
+    b += noiseColor * 0.4;
 
     colors[i * 3] = Math.min(1, Math.max(0, r));
     colors[i * 3 + 1] = Math.min(1, Math.max(0, g));
@@ -149,10 +207,12 @@ export function createWall(
     roughness: 0.92,
     metalness: 0.04,
     side: THREE.DoubleSide,
+    flatShading: true,
+    normalMap: getRockNormalMap(),
+    normalScale: new THREE.Vector2(0.8, 0.8),
   });
 
   const mesh = new THREE.Mesh(geo, mat);
-  // Translate wall away from canyon centre (Y centred, Z centred)
   mesh.position.set(side * baseWidth, wallHeight * 0.5, 0);
   return mesh;
 }
@@ -203,11 +263,11 @@ export function createFloor(
     const disp = noiseH * (1 - padFade * padFade);
     floorPos.setY(i, y + disp);
 
-    // ── Floor vertex colours — dusty reddish with rock variation ──
+    // ── Floor vertex colours — dusty tan sandstone ──
     const colNoise = valueNoise3D(x * 0.01 + seed, z * 0.01, seed * 0.7);
-    const r = 0.52 + colNoise * 0.07;
-    const g = 0.27 + colNoise * 0.04;
-    const bl = 0.14 + colNoise * 0.02;
+    const r = 0.46 + colNoise * 0.08;
+    const g = 0.34 + colNoise * 0.05;
+    const bl = 0.22 + colNoise * 0.03;
     fColors[i * 3] = Math.min(1, r);
     fColors[i * 3 + 1] = Math.min(1, g);
     fColors[i * 3 + 2] = Math.min(1, bl);
@@ -220,6 +280,9 @@ export function createFloor(
     vertexColors: true,
     roughness: 0.95,
     metalness: 0.0,
+    flatShading: true,
+    normalMap: getRockNormalMap(),
+    normalScale: new THREE.Vector2(0.6, 0.6),
   });
   const floorMesh = new THREE.Mesh(floorGeo, floorMat);
   floorGroup.add(floorMesh);
@@ -348,9 +411,10 @@ export function createMesas(
     mGeo.computeVertexNormals();
 
     const mat = new THREE.MeshStandardMaterial({
-      color: new THREE.Color(0.38, 0.20, 0.10),
-      roughness: 0.96,
+      color: new THREE.Color(0.42, 0.28, 0.18),
+      roughness: 0.95,
       metalness: 0.0,
+      flatShading: true,
     });
 
     const mesa = new THREE.Mesh(mGeo, mat);
@@ -363,85 +427,130 @@ export function createMesas(
 
 // ── 5. Base Equipment ────────────────────────────────────
 
+/** Creates a single geodesic dome with wireframe overlay and copper top. */
+function createDome(radius: number, px: number, pz: number): THREE.Group {
+  const domeGroup = new THREE.Group();
+  const detail = radius > 15 ? 3 : 2;
+
+  // Dome shell — half icosahedron (clip bottom half)
+  const shellGeo = new THREE.IcosahedronGeometry(radius, detail);
+  const shellPos = shellGeo.attributes.position as THREE.BufferAttribute;
+  // Push vertices below equator up to equator (creates flat bottom)
+  for (let i = 0; i < shellPos.count; i++) {
+    if (shellPos.getY(i) < 0) shellPos.setY(i, 0);
+  }
+  shellGeo.computeVertexNormals();
+
+  // Shell material — white/light grey panels
+  const shellMat = new THREE.MeshStandardMaterial({
+    color: 0xd8dce0,
+    roughness: 0.3,
+    metalness: 0.4,
+    side: THREE.DoubleSide,
+  });
+  domeGroup.add(new THREE.Mesh(shellGeo, shellMat));
+
+  // Wireframe overlay — dark structural grid lines
+  const wireGeo = new THREE.IcosahedronGeometry(radius * 1.003, detail);
+  const wirePos = wireGeo.attributes.position as THREE.BufferAttribute;
+  for (let i = 0; i < wirePos.count; i++) {
+    if (wirePos.getY(i) < 0) wirePos.setY(i, 0);
+  }
+  const wireMat = new THREE.MeshBasicMaterial({
+    color: 0x334455,
+    wireframe: true,
+  });
+  domeGroup.add(new THREE.Mesh(wireGeo, wireMat));
+
+  // Copper/orange top cap — upper hemisphere tinted
+  const capGeo = new THREE.IcosahedronGeometry(radius * 0.6, detail);
+  const capPos = capGeo.attributes.position as THREE.BufferAttribute;
+  for (let i = 0; i < capPos.count; i++) {
+    if (capPos.getY(i) < radius * 0.25) capPos.setY(i, radius * 0.25);
+  }
+  capGeo.computeVertexNormals();
+  const capMat = new THREE.MeshStandardMaterial({
+    color: 0xcc6633,
+    roughness: 0.4,
+    metalness: 0.5,
+    side: THREE.DoubleSide,
+  });
+  const cap = new THREE.Mesh(capGeo, capMat);
+  cap.position.y = radius * 0.35;
+  domeGroup.add(cap);
+
+  // Base ring — cylindrical foundation
+  const baseGeo = new THREE.CylinderGeometry(radius * 1.05, radius * 1.1, radius * 0.15, 24);
+  const baseMat = new THREE.MeshStandardMaterial({
+    color: 0x888888,
+    roughness: 0.6,
+    metalness: 0.5,
+  });
+  const base = new THREE.Mesh(baseGeo, baseMat);
+  base.position.y = radius * 0.075;
+  domeGroup.add(base);
+
+  domeGroup.position.set(px, 0, pz);
+  return domeGroup;
+}
+
+/** Connecting corridor between two dome positions. */
+function createCorridor(x1: number, z1: number, x2: number, z2: number, tubeRadius: number): THREE.Mesh {
+  const dx = x2 - x1, dz = z2 - z1;
+  const length = Math.sqrt(dx * dx + dz * dz);
+  const angle = Math.atan2(dz, dx);
+
+  const geo = new THREE.CylinderGeometry(tubeRadius, tubeRadius, length, 12);
+  geo.rotateZ(Math.PI / 2);
+  const mat = new THREE.MeshStandardMaterial({
+    color: 0xaab0b8,
+    roughness: 0.4,
+    metalness: 0.5,
+  });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.set((x1 + x2) / 2, tubeRadius * 1.2, (z1 + z2) / 2);
+  mesh.rotation.y = -angle;
+  return mesh;
+}
+
 /**
- * Small structures clustered around the landing pad:
- * antenna dish, fuel tanks, cargo containers.
+ * Mars base colony — geodesic domes with connecting corridors,
+ * clustered near the landing pad.
  */
-export function createBaseEquipment(): THREE.Group {
+export function createBaseColony(): THREE.Group {
   const group = new THREE.Group();
 
-  const metalMat = new THREE.MeshStandardMaterial({
-    color: 0xb0b8c0,
-    roughness: 0.4,
-    metalness: 0.7,
-  });
-  const darkMetalMat = new THREE.MeshStandardMaterial({
-    color: 0x607080,
-    roughness: 0.5,
-    metalness: 0.6,
-  });
-  const orangeMat = new THREE.MeshStandardMaterial({
-    color: 0xd0602a,
-    roughness: 0.5,
-    metalness: 0.3,
-  });
-
-  // ── Antenna dish ──
-  // Pole
-  const poleGeo = new THREE.CylinderGeometry(0.3, 0.35, 12, 8);
-  const pole = new THREE.Mesh(poleGeo, metalMat);
-  pole.position.set(22, 6, 18);
-  group.add(pole);
-  // Dish arm
-  const armGeo = new THREE.CylinderGeometry(0.2, 0.2, 5, 6);
-  armGeo.rotateZ(Math.PI / 4);
-  const arm = new THREE.Mesh(armGeo, metalMat);
-  arm.position.set(22 + 2.2, 12.5, 18);
-  group.add(arm);
-  // Dish bowl (sphere segment)
-  const dishGeo = new THREE.SphereGeometry(3, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.45);
-  dishGeo.rotateX(Math.PI); // open side up-ish
-  const dish = new THREE.Mesh(dishGeo, metalMat);
-  dish.position.set(22 + 3.5, 14.5, 18);
-  dish.rotation.y = Math.PI * 0.3;
-  group.add(dish);
-
-  // ── Fuel tanks (3 cylinders) ──
-  const tankPositions = [
-    [-20, 0, 15],
-    [-24, 0, 22],
-    [-17, 0, 26],
-  ] as const;
-  for (const [tx, , tz] of tankPositions) {
-    const tankH = 6 + Math.random() * 3;
-    const tankR = 1.8;
-    const tankGeo = new THREE.CylinderGeometry(tankR, tankR, tankH, 12);
-    const tank = new THREE.Mesh(tankGeo, orangeMat);
-    tank.position.set(tx, tankH / 2, tz);
-    group.add(tank);
-    // End caps
-    const capGeo = new THREE.SphereGeometry(tankR, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2);
-    const capTop = new THREE.Mesh(capGeo, orangeMat);
-    capTop.position.set(tx, tankH, tz);
-    group.add(capTop);
-    const capBot = new THREE.Mesh(capGeo, orangeMat);
-    capBot.rotation.x = Math.PI;
-    capBot.position.set(tx, 0, tz);
-    group.add(capBot);
-  }
-
-  // ── Cargo containers (2 boxes) ──
-  const containerDefs = [
-    { x: 28, z: -18, w: 8, h: 4, d: 4 },
-    { x: 18, z: -24, w: 6, h: 4, d: 4 },
+  // Dome positions and sizes [radius, x, z]
+  const domes: [number, number, number][] = [
+    [25, -50, -40],    // large central dome
+    [18, -90, -30],    // medium left
+    [15, -40, -80],    // medium right-back
+    [20, -80, -75],    // medium far
+    [12, -110, -60],   // small far-left
   ];
-  for (const cd of containerDefs) {
-    const cGeo = new THREE.BoxGeometry(cd.w, cd.h, cd.d);
-    const container = new THREE.Mesh(cGeo, darkMetalMat);
-    container.position.set(cd.x, cd.h / 2, cd.z);
-    container.rotation.y = (Math.random() - 0.5) * 0.4;
-    group.add(container);
+
+  for (const [r, x, z] of domes) {
+    group.add(createDome(r, x, z));
   }
+
+  // Connecting corridors between adjacent domes
+  group.add(createCorridor(-50, -40, -90, -30, 3));   // central → left
+  group.add(createCorridor(-50, -40, -40, -80, 3));   // central → right-back
+  group.add(createCorridor(-90, -30, -80, -75, 2.5)); // left → far
+  group.add(createCorridor(-90, -30, -110, -60, 2));  // left → far-left
+  group.add(createCorridor(-80, -75, -40, -80, 2.5)); // far → right-back
+
+  // Flat pad area under the colony
+  const padGeo = new THREE.CircleGeometry(80, 32);
+  padGeo.rotateX(-Math.PI / 2);
+  const padMat = new THREE.MeshStandardMaterial({
+    color: 0x606060,
+    roughness: 0.7,
+    metalness: 0.2,
+  });
+  const pad = new THREE.Mesh(padGeo, padMat);
+  pad.position.set(-70, 0.1, -55);
+  group.add(pad);
 
   return group;
 }
@@ -472,20 +581,113 @@ export function createCanyonTerrain(
   const floor = createFloor(config, seed);
   group.add(floor);
 
-  // ── Arches (2-3 spanning the canyon at different depths) ──
-  const archZPositions = [-300, 200, -700];
-  for (let ai = 0; ai < archZPositions.length; ai++) {
-    const arch = createArch(archZPositions[ai], config, seed + ai * 999);
-    group.add(arch);
+  // ── Geodesic dome colony near the launch pad ──
+  const colony = createBaseColony();
+  group.add(colony);
+
+  // ── Mars planet sphere — massive textured surface ──
+  const MARS_RADIUS = 100000;
+  const marsGeo = new THREE.SphereGeometry(MARS_RADIUS, 128, 96);
+
+  // Procedural Mars surface texture
+  const texW = 2048, texH = 1024;
+  const marsCanvas = document.createElement('canvas');
+  marsCanvas.width = texW; marsCanvas.height = texH;
+  const mCtx = marsCanvas.getContext('2d')!;
+
+  // Base rusty red
+  mCtx.fillStyle = '#8b3a1a';
+  mCtx.fillRect(0, 0, texW, texH);
+
+  // Large dark highland regions
+  let _ms = seed + 777;
+  const _mr = () => { _ms = (_ms * 16807 + 7) % 2147483647; return (_ms - 1) / 2147483646; };
+  for (let i = 0; i < 60; i++) {
+    const cx = _mr() * texW, cy = _mr() * texH, cr = 30 + _mr() * 200;
+    const g = mCtx.createRadialGradient(cx, cy, cr * 0.1, cx, cy, cr);
+    g.addColorStop(0, `rgba(60, 20, 8, ${0.15 + _mr() * 0.2})`);
+    g.addColorStop(0.6, `rgba(80, 30, 12, ${0.05 + _mr() * 0.1})`);
+    g.addColorStop(1, 'rgba(80, 30, 12, 0)');
+    mCtx.fillStyle = g;
+    mCtx.beginPath(); mCtx.arc(cx, cy, cr, 0, Math.PI * 2); mCtx.fill();
   }
 
-  // ── Distant mesas ──
-  const mesas = createMesas(config, seed);
-  group.add(mesas);
+  // Lighter dust plains
+  for (let i = 0; i < 40; i++) {
+    const cx = _mr() * texW, cy = _mr() * texH, cr = 40 + _mr() * 150;
+    const g = mCtx.createRadialGradient(cx, cy, cr * 0.2, cx, cy, cr);
+    g.addColorStop(0, `rgba(180, 100, 50, ${0.08 + _mr() * 0.12})`);
+    g.addColorStop(1, 'rgba(180, 100, 50, 0)');
+    mCtx.fillStyle = g;
+    mCtx.beginPath(); mCtx.arc(cx, cy, cr, 0, Math.PI * 2); mCtx.fill();
+  }
 
-  // ── Base equipment ──
-  const equipment = createBaseEquipment();
-  group.add(equipment);
+  // Impact craters
+  for (let i = 0; i < 30; i++) {
+    const cx = _mr() * texW, cy = _mr() * texH, cr = 5 + _mr() * 40;
+    mCtx.strokeStyle = `rgba(50, 18, 8, ${0.2 + _mr() * 0.2})`;
+    mCtx.lineWidth = 1 + _mr() * 2;
+    mCtx.beginPath(); mCtx.arc(cx, cy, cr, 0, Math.PI * 2); mCtx.stroke();
+    // Crater shadow
+    const sg = mCtx.createRadialGradient(cx - cr * 0.2, cy - cr * 0.2, 0, cx, cy, cr * 0.8);
+    sg.addColorStop(0, `rgba(40, 15, 5, ${0.1 + _mr() * 0.1})`);
+    sg.addColorStop(1, 'rgba(40, 15, 5, 0)');
+    mCtx.fillStyle = sg;
+    mCtx.beginPath(); mCtx.arc(cx, cy, cr * 0.8, 0, Math.PI * 2); mCtx.fill();
+  }
+
+  // Polar ice caps (white at top/bottom of texture)
+  for (const yBase of [0, texH - 60]) {
+    const capG = mCtx.createLinearGradient(0, yBase, 0, yBase + (yBase === 0 ? 60 : 0));
+    capG.addColorStop(0, yBase === 0 ? 'rgba(200, 180, 160, 0.35)' : 'rgba(200, 180, 160, 0)');
+    capG.addColorStop(1, yBase === 0 ? 'rgba(200, 180, 160, 0)' : 'rgba(200, 180, 160, 0.35)');
+    mCtx.fillStyle = capG;
+    mCtx.fillRect(0, yBase, texW, 60);
+  }
+
+  const marsTex = new THREE.CanvasTexture(marsCanvas);
+  marsTex.colorSpace = THREE.SRGBColorSpace;
+  marsTex.anisotropy = 4;
+  marsTex.wrapS = THREE.RepeatWrapping;
+
+  const marsMat = new THREE.MeshStandardMaterial({
+    map: marsTex,
+    roughness: 0.92,
+    metalness: 0.02,
+  });
+  const marsSphere = new THREE.Mesh(marsGeo, marsMat);
+  // Position so the top overlaps slightly ABOVE canyon floor (no gap)
+  marsSphere.position.y = -MARS_RADIUS + 50;
+  group.add(marsSphere);
+
+  // ── End wall — blocks the far end, forces player to climb UP ──
+  const endWallGeo = new THREE.PlaneGeometry(config.topWidth * 2.5, config.wallHeight, 30, 20);
+  const endPos = endWallGeo.attributes.position as THREE.BufferAttribute;
+  const endColors = new Float32Array(endPos.count * 3);
+  for (let i = 0; i < endPos.count; i++) {
+    const x = endPos.getX(i), y = endPos.getY(i), z = endPos.getZ(i);
+    const tY = (y + config.wallHeight / 2) / config.wallHeight;
+    // Noise displacement — push the wall forward/back for craggy face
+    const ns = 0.003;
+    const disp = fbm3D(x * ns + seed + 999, tY * 2, seed * 0.8, 4) * 40
+      + ridgedNoise3D(x * ns * 2 + seed, tY * 3, seed + 5, 3) * 15;
+    endPos.setZ(i, z + disp);
+    // Sandstone colors matching walls
+    const stripe = Math.sin(tY * 22 + fbm3D(x * ns, tY * 3, seed + 999, 3) * 3) * 0.5 + 0.5;
+    endColors[i * 3]     = Math.min(1, 0.48 + stripe * 0.10);
+    endColors[i * 3 + 1] = Math.min(1, 0.34 + stripe * 0.06);
+    endColors[i * 3 + 2] = Math.min(1, 0.22 + stripe * 0.03);
+  }
+  endWallGeo.setAttribute('color', new THREE.BufferAttribute(endColors, 3));
+  endWallGeo.computeVertexNormals();
+  const endWallMat = new THREE.MeshStandardMaterial({
+    vertexColors: true, roughness: 0.92, metalness: 0.04,
+    side: THREE.DoubleSide, flatShading: true,
+    normalMap: getRockNormalMap(), normalScale: new THREE.Vector2(0.8, 0.8),
+  });
+  const endWall = new THREE.Mesh(endWallGeo, endWallMat);
+  endWall.position.set(0, config.wallHeight / 2, config.length / 2); // at the far end
+  group.add(endWall);
 
   // ── Lighting ──
   // Warm Mars sun — low angle directional light (dust-filtered orange sun)
@@ -513,11 +715,11 @@ export function createCanyonTerrain(
     wallCenterX,
     canyonLength: config.length,
     cleanup() {
+      scene.remove(group);
       scene.remove(sunLight);
       scene.remove(ambientLight);
       scene.remove(fillLight);
 
-      // Traverse and dispose all geometries + materials
       group.traverse((obj) => {
         if (obj instanceof THREE.Mesh) {
           obj.geometry.dispose();

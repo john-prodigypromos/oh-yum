@@ -33,7 +33,7 @@ function _hash3(x: number, y: number, z: number): number {
 }
 function _lerp(a: number, b: number, t: number): number { return a + (b - a) * t; }
 function _fade(t: number): number { return t * t * t * (t * (t * 6 - 15) + 10); }
-function valueNoise3D(x: number, y: number, z: number): number {
+export function valueNoise3D(x: number, y: number, z: number): number {
   const ix = Math.floor(x), iy = Math.floor(y), iz = Math.floor(z);
   const fx = _fade(x - ix), fy = _fade(y - iy), fz = _fade(z - iz);
   const n000 = _hash3(ix, iy, iz), n100 = _hash3(ix + 1, iy, iz);
@@ -48,7 +48,7 @@ function valueNoise3D(x: number, y: number, z: number): number {
 }
 
 /** FBM (fractal brownian motion) — stacks noise octaves for organic detail. */
-function fbm3D(x: number, y: number, z: number, octaves: number, lacunarity = 2.0, gain = 0.5): number {
+export function fbm3D(x: number, y: number, z: number, octaves: number, lacunarity = 2.0, gain = 0.5): number {
   let value = 0, amp = 1, freq = 1, norm = 0;
   for (let o = 0; o < octaves; o++) {
     value += amp * valueNoise3D(x * freq, y * freq, z * freq);
@@ -60,7 +60,7 @@ function fbm3D(x: number, y: number, z: number, octaves: number, lacunarity = 2.
 }
 
 /** Ridged noise — creates sharp crags and ridgelines. */
-function ridgedNoise3D(x: number, y: number, z: number, octaves: number): number {
+export function ridgedNoise3D(x: number, y: number, z: number, octaves: number): number {
   let value = 0, amp = 1, freq = 1, norm = 0, prev = 1;
   for (let o = 0; o < octaves; o++) {
     let n = Math.abs(valueNoise3D(x * freq, y * freq, z * freq));
@@ -77,7 +77,7 @@ function ridgedNoise3D(x: number, y: number, z: number, octaves: number): number
 }
 
 /** Domain-warped FBM — feeds noise through another noise layer for truly organic, swirly shapes. */
-function warpedFbm3D(x: number, y: number, z: number, octaves: number, warpStrength = 0.8): number {
+export function warpedFbm3D(x: number, y: number, z: number, octaves: number, warpStrength = 0.8): number {
   const wx = x + warpStrength * fbm3D(x + 0.0, y + 3.2, z + 1.3, 3);
   const wy = y + warpStrength * fbm3D(x + 5.2, y + 1.3, z + 2.8, 3);
   const wz = z + warpStrength * fbm3D(x + 2.1, y + 7.8, z + 4.1, 3);
@@ -85,7 +85,7 @@ function warpedFbm3D(x: number, y: number, z: number, octaves: number, warpStren
 }
 
 /** Double domain warp — two passes of coordinate distortion for maximum organic chaos. */
-function doubleWarpedFbm3D(x: number, y: number, z: number, octaves: number): number {
+export function doubleWarpedFbm3D(x: number, y: number, z: number, octaves: number): number {
   // First warp
   const w1x = x + 0.7 * fbm3D(x + 0.0, y + 3.2, z + 1.3, 3);
   const w1y = y + 0.7 * fbm3D(x + 5.2, y + 1.3, z + 2.8, 3);

@@ -39,6 +39,8 @@ export class HUD3D {
   private tauntTypewriterText = '';
   private tauntTypewriterIdx = 0;
   private tauntTypewriterTimer = 0;
+  private altitudeEl: HTMLDivElement;
+  private missionPhase: 'launch' | 'combat' | 'landing' | null = null;
 
   constructor() {
     const overlay = document.getElementById('ui-overlay')!;
@@ -258,6 +260,15 @@ export class HUD3D {
     this.tauntTextEl = document.createElement('span');
     this.tauntEl.appendChild(this.tauntTextEl);
     this.container.appendChild(this.tauntEl);
+
+    // Altitude indicator (visible during launch/landing phases)
+    this.altitudeEl = document.createElement('div');
+    this.altitudeEl.style.cssText = `
+      position:absolute;top:50%;right:20px;transform:translateY(-50%);
+      font-family:var(--font-display);font-size:14px;color:var(--cyan);
+      letter-spacing:2px;text-align:right;display:none;
+    `;
+    this.container.appendChild(this.altitudeEl);
 
     overlay.appendChild(this.container);
   }
@@ -492,6 +503,19 @@ export class HUD3D {
       if (this.tauntTimer <= 0) {
         this.tauntEl.classList.remove('visible');
       }
+    }
+  }
+
+  setMissionPhase(phase: 'launch' | 'combat' | 'landing' | null): void {
+    this.missionPhase = phase;
+    const isAtmo = phase === 'launch' || phase === 'landing';
+    this.altitudeEl.style.display = isAtmo ? 'block' : 'none';
+  }
+
+  updateAltitude(altitude: number): void {
+    if (this.missionPhase === 'launch' || this.missionPhase === 'landing') {
+      const alt = Math.max(0, Math.round(altitude));
+      this.altitudeEl.textContent = `ALT ${alt.toLocaleString()}m`;
     }
   }
 

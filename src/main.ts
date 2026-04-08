@@ -16,6 +16,9 @@ import { COLORS } from './config';
 import { SoundSystem } from './systems/SoundSystem';
 import { getSpawnTaunt, getWinTaunt } from './config/VillainTaunts';
 import { createCinematic, updateCinematic, cleanupCinematic, type CinematicState } from './scenes/TakeoffCinematic';
+import { createMarsLaunch, updateMarsLaunch, cleanupMarsLaunch, type MarsLaunchState } from './scenes/MarsLaunch';
+import { createEarthLanding, updateEarthLanding, isLandingComplete, cleanupEarthLanding, type EarthLandingState } from './scenes/EarthLanding';
+import { setMissionPhase } from './state/LevelState';
 
 // ── Globals ──
 let bundle: RendererBundle;
@@ -24,6 +27,8 @@ let sceneManager: SceneManager;
 let arena: ArenaState | null = null;
 let hud: HUD3D | null = null;
 let cinematic: CinematicState | null = null;
+let marsLaunch: MarsLaunchState | null = null;
+let earthLanding: EarthLandingState | null = null;
 let spaceEnv: SpaceEnvironment;
 let globalSound: import('./systems/SoundSystem').SoundSystem | null = null;
 const keys: Record<string, boolean> = {};
@@ -106,6 +111,12 @@ function handleSceneEnter(state: SceneState, _prev: SceneState | null): void {
     case 'cinematic':
       startCinematic();
       break;
+    case 'marsLaunch':
+      startMarsLaunch();
+      break;
+    case 'earthLanding':
+      startEarthLanding();
+      break;
     case 'arena':
       startArena();
       break;
@@ -131,6 +142,14 @@ function handleSceneExit(state: SceneState, _next: SceneState): void {
   if (state === 'cinematic' && cinematic) {
     cleanupCinematic(cinematic, bundle.scene);
     cinematic = null;
+  }
+  if (state === 'marsLaunch' && marsLaunch) {
+    cleanupMarsLaunch(marsLaunch, bundle.scene);
+    marsLaunch = null;
+  }
+  if (state === 'earthLanding' && earthLanding) {
+    cleanupEarthLanding(earthLanding, bundle.scene);
+    earthLanding = null;
   }
 }
 
@@ -284,7 +303,7 @@ function showCharSelectOverlay(): void {
 
     card.addEventListener('click', () => {
       setCharacter(id);
-      sceneManager.transition('levelIntro');
+      sceneManager.transition('marsLaunch');
     });
     grid.appendChild(card);
   }
@@ -424,6 +443,18 @@ function removePauseOverlay(): void {
 function startCinematic(): void {
   crosshairEl.style.display = 'none';
   cinematic = createCinematic(bundle.scene, bundle.camera);
+}
+
+function startMarsLaunch(): void {
+  crosshairEl.style.display = 'block';
+  setMissionPhase('launch');
+  marsLaunch = createMarsLaunch(bundle.scene, bundle.camera);
+}
+
+function startEarthLanding(): void {
+  crosshairEl.style.display = 'block';
+  setMissionPhase('landing');
+  earthLanding = createEarthLanding(bundle.scene, bundle.camera, totalScore);
 }
 
 function startArena(): void {
@@ -626,7 +657,7 @@ function animate() {
       if (hasNext) {
         sceneManager.transition('levelIntro');
       } else {
-        sceneManager.transition('highScore');
+        sceneManager.transition('earthLanding');
       }
     } else if (arena.gameOver && now - arena.gameOverTime > TRANSITION_DELAY) {
       sceneManager.transition('gameOver');
@@ -635,6 +666,16 @@ function animate() {
     updateCinematic(cinematic, bundle.camera, dt);
     if (cinematic.done) {
       sceneManager.transition('arena');
+    }
+  } else if (sceneManager.current === 'marsLaunch' && marsLaunch) {
+    updateMarsLaunch(marsLaunch, keys, dt, now, bundle.scene);
+    if (marsLaunch.orbitReached && now - marsLaunch.orbitTimer > 2000) {
+      sceneManager.transition('levelIntro');
+    }
+  } else if (sceneManager.current === 'earthLanding' && earthLanding) {
+    updateEarthLanding(earthLanding, keys, dt, now, bundle.scene);
+    if (isLandingComplete(earthLanding)) {
+      sceneManager.transition('highScore');
     }
   } else if (sceneManager.current === 'title') {
     // Slowly rotate camera for cinematic idle

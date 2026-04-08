@@ -34,6 +34,7 @@ export function resetLevelState(): void {
   carryOverHull = null;
   carryOverShield = null;
   totalScore = 0;
+  currentMissionPhase = 'launch';
 }
 
 export function advanceLevel(playerHull: number, playerMaxHull: number, playerMaxShield: number, matchScore: number): boolean {
@@ -52,4 +53,11 @@ export function advanceLevel(playerHull: number, playerMaxHull: number, playerMa
 
 export function isLastLevel(): boolean {
   return currentLevelIndex >= LEVELS.length - 1;
+}
+
+export type MissionPhase = 'launch' | 'combat' | 'landing';
+export let currentMissionPhase: MissionPhase = 'launch';
+
+export function setMissionPhase(phase: MissionPhase): void {
+  currentMissionPhase = phase;
 }

@@ -330,6 +330,10 @@ export class SoundSystem {
   private thrustFilter: BiquadFilterNode | null = null;
   private thrusting = false;
 
+  // ── Atmospheric wind drone ──
+  private windOsc: OscillatorNode | null = null;
+  private windGain: GainNode | null = null;
+
   startThrust(): void {
     if (this.thrusting) return;
     const ctx = this.ensureCtx();
@@ -908,5 +912,107 @@ export class SoundSystem {
     droneGain.connect(this.masterGain!);
     drone.start(now + 1.0);
     drone.stop(now + 2.5);
+  }
+
+  // ── Atmospheric wind drone: continuous sawtooth through deep low-pass ──
+  startWindDrone(): void {
+    if (this.windOsc) return;
+    const ctx = this.ensureCtx();
+    if (!ctx || !this.masterGain) return;
+
+    this.windOsc = ctx.createOscillator();
+    this.windGain = ctx.createGain();
+    const filter = this.lpf(ctx, 200);
+    this.windOsc.type = 'sawtooth';
+    this.windOsc.frequency.value = 55;
+    this.windGain.gain.value = 0.08;
+    this.windOsc.connect(filter);
+    filter.connect(this.windGain);
+    this.windGain.connect(this.masterGain);
+    this.windOsc.start();
+  }
+
+  // ── Set wind intensity: t=0 → full wind (0.08), t=1 → silent ──
+  setWindIntensity(t: number): void {
+    if (!this.windGain || !this.ctx) return;
+    this.windGain.gain.setValueAtTime(0.08 * (1 - t), this.ctx.currentTime);
+  }
+
+  // ── Stop wind drone ──
+  stopWindDrone(): void {
+    if (!this.windOsc) return;
+    try { this.windOsc.stop(); } catch {}
+    this.windOsc = null;
+    this.windGain = null;
+  }
+
+  // ── Reentry roar: 3s white noise through low-pass, gain ramps in then out ──
+  reentryRoar(): void {
+    const ctx = this.ensureCtx();
+    if (!ctx || !this.masterGain) return;
+    const now = ctx.currentTime;
+
+    const bufferSize = ctx.sampleRate * 3;
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      data[i] = Math.random() * 2 - 1;
+    }
+    const noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+
+    const filter = this.lpf(ctx, 300);
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.15, now + 1.0);
+    gain.gain.linearRampToValueAtTime(0.2, now + 2.0);
+    gain.gain.linearRampToValueAtTime(0, now + 3.0);
+
+    noise.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.masterGain);
+    noise.start(now);
+  }
+
+  // ── Touchdown: mechanical thud — sine dropping 60→30Hz, sharp decay ──
+  touchdown(): void {
+    const ctx = this.ensureCtx();
+    if (!ctx || !this.masterGain) return;
+    const now = ctx.currentTime;
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(60, now);
+    osc.frequency.linearRampToValueAtTime(30, now + 0.3);
+    gain.gain.setValueAtTime(0.3, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+    osc.connect(gain);
+    gain.connect(this.masterGain);
+    osc.start(now);
+    osc.stop(now + 0.4);
+  }
+
+  // ── Landing fanfare: major chord C4-E4-G4-C5 with triangle oscillators ──
+  landingFanfare(): void {
+    const ctx = this.ensureCtx();
+    if (!ctx || !this.masterGain) return;
+    const now = ctx.currentTime;
+
+    const freqs = [261.6, 329.6, 392.0, 523.3]; // C4, E4, G4, C5
+    for (const freq of freqs) {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(0.08, now + 0.1);
+      gain.gain.setValueAtTime(0.08, now + 1.6);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 3.0);
+      osc.connect(gain);
+      gain.connect(this.masterGain);
+      osc.start(now);
+      osc.stop(now + 3.0);
+    }
   }
 }

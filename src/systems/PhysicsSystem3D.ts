@@ -5,6 +5,7 @@
 import * as THREE from 'three';
 import { Ship3D } from '../entities/Ship3D';
 import { PHYSICS, ARENA } from '../config';
+import type { AtmosphereModifiers } from './AtmosphereSystem';
 
 export interface ShipInput {
   yaw: number;    // -1 to 1
@@ -18,7 +19,7 @@ const _pitchAxis = new THREE.Vector3(1, 0, 0);
 const _rollAxis = new THREE.Vector3(0, 0, 1);
 const _quat = new THREE.Quaternion();
 
-export function applyShipPhysics(ship: Ship3D, input: ShipInput, dt: number, now: number): void {
+export function applyShipPhysics(ship: Ship3D, input: ShipInput, dt: number, now: number, atmosphere?: AtmosphereModifiers): void {
   if (!ship.alive) return;
 
   const rotSpeed = PHYSICS.ROTATION_SPEED * ship.rotationMult;
@@ -37,6 +38,17 @@ export function applyShipPhysics(ship: Ship3D, input: ShipInput, dt: number, now
 
   ship.group.quaternion.normalize();
 
+  // ── Atmosphere effects ──
+  if (atmosphere) {
+    if (atmosphere.gravity > 0) {
+      ship.velocity.y -= atmosphere.gravity * dt;
+    }
+    if (atmosphere.drag > 0) {
+      const atmoDrag = Math.exp(-atmosphere.drag * dt);
+      ship.velocity.multiplyScalar(atmoDrag);
+    }
+  }
+
   // ── Thrust ──
   if (input.thrust !== 0) {
     const forward = ship.getForward();
@@ -52,6 +64,15 @@ export function applyShipPhysics(ship: Ship3D, input: ShipInput, dt: number, now
   const speed = ship.velocity.length();
   if (speed > PHYSICS.MAX_VELOCITY * ship.speedMult) {
     ship.velocity.setLength(PHYSICS.MAX_VELOCITY * ship.speedMult);
+  }
+
+  // ── Atmosphere speed cap override ──
+  if (atmosphere && atmosphere.speedCap < PHYSICS.MAX_VELOCITY * ship.speedMult) {
+    const maxSpeed = atmosphere.speedCap * ship.speedMult;
+    const speed2 = ship.velocity.length();
+    if (speed2 > maxSpeed) {
+      ship.velocity.setLength(maxSpeed);
+    }
   }
 
   // ── Move ──

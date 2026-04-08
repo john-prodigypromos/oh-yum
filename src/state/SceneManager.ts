@@ -2,7 +2,7 @@
 // State machine managing game flow:
 // title → charSelect → levelIntro → arena → highScore → title
 
-export type SceneState = 'title' | 'charSelect' | 'levelIntro' | 'cinematic' | 'arena' | 'highScore' | 'gameOver';
+export type SceneState = 'title' | 'charSelect' | 'levelIntro' | 'cinematic' | 'marsLaunch' | 'arena' | 'earthLanding' | 'highScore' | 'gameOver';
 
 export interface SceneCallbacks {
   onEnter: (state: SceneState, prevState: SceneState | null) => void;

@@ -416,41 +416,89 @@ function createPlanetTexture(type: PlanetProfile['textureType'], seed: number): 
       break;
     }
     case 'gas': {
-      // Banded amber/cream Jupiter-like
-      const bands = [
-        '#c8a060', '#b89050', '#d8b878', '#a08040', '#c09858',
-        '#dcc088', '#b08848', '#c8a868', '#a88848', '#d0b070',
-        '#b89858', '#c8a060', '#a07838', '#c0a068',
+      // Pixel-level noise-based banding — organic, wavy Jupiter-like bands
+      const img = ctx.getImageData(0, 0, W, H);
+      const d = img.data;
+
+      // Simple 2D value noise for wavy distortion
+      const _h3 = (x: number, y: number) => {
+        let n = Math.sin(x * 127.1 + y * 311.7) * 43758.5453;
+        return n - Math.floor(n);
+      };
+      const _vn = (x: number, y: number) => {
+        const ix = Math.floor(x), iy = Math.floor(y);
+        const fx = x - ix, fy = y - iy;
+        const sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy);
+        const a = _h3(ix, iy), b = _h3(ix + 1, iy);
+        const c = _h3(ix, iy + 1), dd = _h3(ix + 1, iy + 1);
+        return (a + (b - a) * sx + (c - a) * sy + (a - b - c + dd) * sx * sy) * 2 - 1;
+      };
+      const _fbm2 = (x: number, y: number, oct: number) => {
+        let v = 0, a = 1, f = 1, n = 0;
+        for (let o = 0; o < oct; o++) { v += a * _vn(x * f, y * f); n += a; a *= 0.5; f *= 2.0; }
+        return v / n;
+      };
+
+      // Band color palette — warm amber/cream tones
+      const bandColors = [
+        [200, 160, 96], [184, 144, 80], [216, 184, 120], [160, 128, 64],
+        [192, 152, 88], [220, 192, 136], [176, 136, 72], [200, 168, 104],
+        [168, 136, 72], [208, 176, 112], [184, 152, 88], [200, 160, 96],
+        [160, 120, 56], [192, 160, 104],
       ];
-      const bandH = H / bands.length;
-      for (let i = 0; i < bands.length; i++) {
-        ctx.fillStyle = bands[i];
-        ctx.fillRect(0, i * bandH, W, bandH + 1);
+      const bandCount = bandColors.length;
+      const s = seed + 50;
+
+      for (let py = 0; py < H; py++) {
+        for (let px = 0; px < W; px++) {
+          const idx = (py * W + px) * 4;
+          const u = px / W, v = py / H;
+
+          // Wavy band distortion — shifts the Y lookup with noise
+          const warp = _fbm2(u * 6 + s, v * 3 + s * 0.3, 4) * 0.06
+                     + _fbm2(u * 12 + s * 2, v * 8 + s, 3) * 0.025;
+          const distortedV = v + warp;
+
+          // Which band are we in? Use sine-modulated spacing for irregular widths
+          const bandPos = distortedV * bandCount + _vn(u * 2 + s, distortedV * 2) * 0.5;
+          const bandIdx = Math.floor(((bandPos % bandCount) + bandCount) % bandCount);
+          const nextIdx = (bandIdx + 1) % bandCount;
+          const bandFrac = bandPos - Math.floor(bandPos);
+
+          // Smooth blend between adjacent bands
+          const smooth = bandFrac * bandFrac * (3 - 2 * bandFrac);
+          const c0 = bandColors[bandIdx], c1 = bandColors[nextIdx];
+          let r = c0[0] + (c1[0] - c0[0]) * smooth;
+          let g = c0[1] + (c1[1] - c0[1]) * smooth;
+          let b = c0[2] + (c1[2] - c0[2]) * smooth;
+
+          // Turbulence — swirly detail within each band
+          const turb = _fbm2(u * 20 + s, v * 10, 4) * 25;
+          r += turb; g += turb * 0.8; b += turb * 0.5;
+
+          // Fine horizontal streaks — atmospheric shear
+          const streak = _vn(u * 50 + s, v * 200) * 8;
+          r += streak; g += streak * 0.7; b += streak * 0.4;
+
+          d[idx]     = Math.max(0, Math.min(255, r));
+          d[idx + 1] = Math.max(0, Math.min(255, g));
+          d[idx + 2] = Math.max(0, Math.min(255, b));
+          d[idx + 3] = 255;
+        }
       }
-      // Turbulent band edges
-      for (let i = 0; i < 50; i++) {
-        const y = rng() * H;
-        const x = rng() * W;
-        const w = 40 + rng() * 150;
-        const h = 3 + rng() * 8;
-        const alpha = 0.06 + rng() * 0.1;
-        const bright = rng() > 0.5;
-        ctx.fillStyle = bright
-          ? `rgba(220, 190, 140, ${alpha})`
-          : `rgba(120, 80, 40, ${alpha})`;
-        ctx.fillRect(x, y, w, h);
-      }
-      // Great storm spots
-      for (let i = 0; i < 3; i++) {
-        const cx = rng() * W, cy = H * 0.2 + rng() * H * 0.6;
-        const rx = 15 + rng() * 40, ry = 10 + rng() * 20;
-        const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, rx);
-        const stormColor = rng() > 0.5 ? '180, 80, 40' : '200, 160, 100';
-        g.addColorStop(0, `rgba(${stormColor}, 0.5)`);
-        g.addColorStop(0.5, `rgba(${stormColor}, 0.2)`);
-        g.addColorStop(1, `rgba(${stormColor}, 0)`);
-        ctx.fillStyle = g;
-        ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.putImageData(img, 0, 0);
+
+      // Storm spots — painted on top
+      for (let i = 0; i < 4; i++) {
+        const cx = rng() * W, cy = H * 0.15 + rng() * H * 0.7;
+        const rx = 12 + rng() * 35, ry = 8 + rng() * 18;
+        const gg = ctx.createRadialGradient(cx, cy, 0, cx, cy, rx);
+        const stormR = rng() > 0.5;
+        gg.addColorStop(0, stormR ? 'rgba(180, 80, 40, 0.5)' : 'rgba(220, 190, 130, 0.45)');
+        gg.addColorStop(0.4, stormR ? 'rgba(160, 70, 30, 0.25)' : 'rgba(200, 170, 110, 0.2)');
+        gg.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = gg;
+        ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, rng() * 0.3, 0, Math.PI * 2); ctx.fill();
       }
       break;
     }

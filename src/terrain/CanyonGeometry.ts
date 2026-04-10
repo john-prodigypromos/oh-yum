@@ -99,10 +99,19 @@ function marsRed(noiseVal: number): THREE.Color {
  * A PlaneGeometry displaced with layered noise to create
  * organic crags, sediment stripes, and overhangs.
  */
+/** Optional cavern cutout — pushes wall vertices outward to create an opening. */
+export interface CavernCutout {
+  zCenter: number;   // center Z of the opening
+  zWidth: number;    // full width of opening along Z
+  height: number;    // how high the opening goes (from floor)
+  depth: number;     // how far the wall is pushed outward
+}
+
 export function createWall(
   side: -1 | 1,
   config: CanyonConfig = DEFAULT_CONFIG,
   seed: number = 0,
+  cutout?: CavernCutout,
 ): THREE.Mesh {
   const { length, baseWidth, topWidth, wallHeight } = config;
   const segW = 60; // along length (Z)
@@ -156,8 +165,24 @@ export function createWall(
 
     const totalDisp = lumps + crags + detail + overhang;
 
+    // ── Cavern cutout — push wall outward to carve an opening ──
+    let cutoutDisp = 0;
+    if (cutout && side === 1) {
+      const vertY = rawY + wallHeight * 0.5; // actual Y from floor (0 = floor)
+      const zDist = Math.abs(rawZ - cutout.zCenter);
+      const zHalf = cutout.zWidth / 2;
+      const inZRange = zDist < zHalf;
+      const inYRange = vertY < cutout.height;
+      if (inZRange && inYRange) {
+        // Smooth falloff at edges so the opening blends into the rock
+        const zEdge = 1 - Math.pow(zDist / zHalf, 4);
+        const yEdge = 1 - Math.pow(vertY / cutout.height, 4);
+        cutoutDisp = cutout.depth * zEdge * yEdge;
+      }
+    }
+
     // Apply displacement along the wall normal (pointing inward)
-    pos.setX(i, wallX + side * totalDisp);
+    pos.setX(i, wallX + side * (totalDisp + cutoutDisp));
     pos.setY(i, rawY);
     pos.setZ(i, rawZ);
 
@@ -427,12 +452,62 @@ export function createMesas(
 
 // ── 5. Base Equipment ────────────────────────────────────
 
-/** Creates a single geodesic dome — solid half-sphere, no wireframe. */
+/** Builds 3D tube struts along geodesic edges of the upper hemisphere. */
+function buildGeodesicStruts(radius: number, detail: number, barRadius: number, mat: THREE.MeshStandardMaterial): THREE.Group {
+  const struts = new THREE.Group();
+  const ico = new THREE.IcosahedronGeometry(radius, detail);
+  const pos = ico.getAttribute('position');
+  const idx = ico.getIndex();
+  const yThresh = -radius * 0.05;
+
+  // Read triangles — handle both indexed and non-indexed geometry
+  const triCount = idx ? idx.count / 3 : pos.count / 3;
+  function getVert(triIdx: number, vertIdx: number): THREE.Vector3 {
+    const i = idx ? idx.getX(triIdx * 3 + vertIdx) : triIdx * 3 + vertIdx;
+    return new THREE.Vector3(pos.getX(i), pos.getY(i), pos.getZ(i));
+  }
+
+  // Collect unique edges (upper hemisphere only)
+  const edgeSet = new Set<string>();
+  const edges: [THREE.Vector3, THREE.Vector3][] = [];
+
+  for (let t = 0; t < triCount; t++) {
+    const v0 = getVert(t, 0), v1 = getVert(t, 1), v2 = getVert(t, 2);
+    if (v0.y < yThresh || v1.y < yThresh || v2.y < yThresh) continue;
+
+    const tri = [v0, v1, v2];
+    for (let j = 0; j < 3; j++) {
+      const a = tri[j], b = tri[(j + 1) % 3];
+      // Deduplicate edges by sorting endpoint coords
+      const ax = a.x.toFixed(2), ay = a.y.toFixed(2), az = a.z.toFixed(2);
+      const bx = b.x.toFixed(2), by = b.y.toFixed(2), bz = b.z.toFixed(2);
+      const key = `${ax},${ay},${az}` < `${bx},${by},${bz}`
+        ? `${ax},${ay},${az}|${bx},${by},${bz}`
+        : `${bx},${by},${bz}|${ax},${ay},${az}`;
+      if (!edgeSet.has(key)) {
+        edgeSet.add(key);
+        edges.push([a.clone(), b.clone()]);
+      }
+    }
+  }
+
+  // Build a tube mesh for each edge
+  for (const [a, b] of edges) {
+    const path = new THREE.LineCurve3(a, b);
+    const tubeGeo = new THREE.TubeGeometry(path, 1, barRadius, 6, false);
+    struts.add(new THREE.Mesh(tubeGeo, mat));
+  }
+
+  ico.dispose();
+  return struts;
+}
+
+/** Creates a detailed geodesic dome with 3D triangulated roof bars, windows, and antenna. */
 function createDome(radius: number, px: number, pz: number): THREE.Group {
   const domeGroup = new THREE.Group();
 
-  // Solid dome shell — upper hemisphere
-  const shellGeo = new THREE.SphereGeometry(radius, 48, 24, 0, Math.PI * 2, 0, Math.PI / 2);
+  // Solid dome shell — opaque panels between the bars
+  const shellGeo = new THREE.SphereGeometry(radius * 0.995, 64, 32, 0, Math.PI * 2, 0, Math.PI / 2);
   const shellMat = new THREE.MeshStandardMaterial({
     color: 0xd0d8e0,
     roughness: 0.2,
@@ -440,22 +515,75 @@ function createDome(radius: number, px: number, pz: number): THREE.Group {
   });
   domeGroup.add(new THREE.Mesh(shellGeo, shellMat));
 
-  // Structural ribs — EdgesGeometry on a lower-poly version for clean panel lines
-  const ribGeo = new THREE.SphereGeometry(radius * 1.003, 10, 5, 0, Math.PI * 2, 0, Math.PI / 2);
-  const edges = new THREE.EdgesGeometry(ribGeo, 1);
-  const ribMat = new THREE.LineBasicMaterial({ color: 0x3a4a5a, linewidth: 1 });
-  domeGroup.add(new THREE.LineSegments(edges, ribMat));
+  // Geodesic roof bars — dark metal, clearly raised above the shell
+  const barMat = new THREE.MeshStandardMaterial({
+    color: 0x667788,
+    roughness: 0.6,
+    metalness: 0.4,
+  });
+  const fineStruts = buildGeodesicStruts(radius * 1.04, 2, radius * 0.018, barMat);
+  domeGroup.add(fineStruts);
+
+  // Heavy structural ribs — thick dark beams
+  const ribMat = new THREE.MeshStandardMaterial({
+    color: 0x556677,
+    roughness: 0.5,
+    metalness: 0.5,
+  });
+  const heavyStruts = buildGeodesicStruts(radius * 1.06, 1, radius * 0.035, ribMat);
+  domeGroup.add(heavyStruts);
+
+  // Hub nodes at structural intersections — small spheres where heavy ribs meet
+  const hubGeo = new THREE.SphereGeometry(radius * 0.035, 8, 8);
+  const hubMat = new THREE.MeshStandardMaterial({ color: 0x556677, roughness: 0.5, metalness: 0.5 });
+  const icoRef = new THREE.IcosahedronGeometry(radius * 1.065, 1);
+  const icoPos = icoRef.getAttribute('position');
+  const hubSet = new Set<string>();
+  for (let i = 0; i < icoPos.count; i++) {
+    const y = icoPos.getY(i);
+    if (y < -radius * 0.05) continue;
+    const key = `${icoPos.getX(i).toFixed(1)},${icoPos.getY(i).toFixed(1)},${icoPos.getZ(i).toFixed(1)}`;
+    if (hubSet.has(key)) continue;
+    hubSet.add(key);
+    const hub = new THREE.Mesh(hubGeo, hubMat);
+    hub.position.set(icoPos.getX(i), icoPos.getY(i), icoPos.getZ(i));
+    domeGroup.add(hub);
+  }
+  icoRef.dispose();
+
+  // Glowing window band — cyan ring
+  const windowGeo = new THREE.TorusGeometry(radius * 0.85, radius * 0.04, 8, 64);
+  const windowMat = new THREE.MeshBasicMaterial({ color: 0x66ddff, transparent: true, opacity: 0.7 });
+  const windowRing = new THREE.Mesh(windowGeo, windowMat);
+  windowRing.rotation.x = -Math.PI / 2;
+  windowRing.position.y = radius * 0.35;
+  domeGroup.add(windowRing);
+
+  // Antenna/spire
+  const spireGeo = new THREE.CylinderGeometry(radius * 0.01, radius * 0.03, radius * 0.3, 8);
+  const spireMat = new THREE.MeshStandardMaterial({ color: 0x999999, roughness: 0.4, metalness: 0.8 });
+  const spire = new THREE.Mesh(spireGeo, spireMat);
+  spire.position.y = radius + radius * 0.15;
+  domeGroup.add(spire);
+
+  // Blinking light on tip
+  const tipGeo = new THREE.SphereGeometry(radius * 0.025, 8, 8);
+  const tipMat = new THREE.MeshBasicMaterial({ color: 0xff3300 });
+  const tip = new THREE.Mesh(tipGeo, tipMat);
+  tip.position.y = radius + radius * 0.3;
+  domeGroup.add(tip);
 
   // Base ring — concrete foundation
-  const baseGeo = new THREE.CylinderGeometry(radius * 1.08, radius * 1.12, radius * 0.15, 32);
-  const baseMat = new THREE.MeshStandardMaterial({
-    color: 0x666666,
-    roughness: 0.7,
-    metalness: 0.3,
-  });
+  const baseGeo = new THREE.CylinderGeometry(radius * 1.08, radius * 1.14, radius * 0.18, 48);
+  const baseMat = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.8, metalness: 0.2 });
   const base = new THREE.Mesh(baseGeo, baseMat);
-  base.position.y = radius * 0.075;
+  base.position.y = radius * 0.09;
   domeGroup.add(base);
+
+  // Inner glow
+  const glowLight = new THREE.PointLight(0x66ddff, 0.5, radius * 3);
+  glowLight.position.y = radius * 0.3;
+  domeGroup.add(glowLight);
 
   domeGroup.position.set(px, 0, pz);
   return domeGroup;
@@ -481,45 +609,125 @@ function createCorridor(x1: number, z1: number, x2: number, z2: number, tubeRadi
 }
 
 /**
- * Mars base colony — geodesic domes with connecting corridors,
- * clustered near the landing pad.
+ * Mars base colony — geodesic domes inside a massive cavern
+ * carved into the RIGHT canyon wall, near the launch pad.
+ * Player starts at (0, 15, -8000) facing up canyon.
+ * The cavern opens at the right wall (X ≈ +120) and extends
+ * deep into the rock. Warm lighting illuminates the interior.
  */
 export function createBaseColony(): THREE.Group {
   const group = new THREE.Group();
 
-  // Dome positions and sizes [radius, x, z] — near player start at z=-8000
-  // Scaled up so domes are visible from orbit distance
-  const bz = -8000;
+  // ── Cavern — open-front chamber carved into the right wall ──
+  const cavernW = 800;  // depth into wall (X)
+  const cavernH = 250;  // ceiling height (Y)
+  const cavernD = 900;  // width along canyon (Z)
+  const wallX = 50;     // entrance X — just past canyon center so domes are RIGHT THERE
+  const cx = wallX + cavernW / 2;  // center X
+  const cz = -7950;     // centered on player Z (-8000) but slightly ahead
+
+  const rockMat = new THREE.MeshStandardMaterial({
+    color: 0x1a0e08,
+    roughness: 0.95,
+    metalness: 0.05,
+    side: THREE.DoubleSide,
+  });
+
+  // Ceiling — massive slab, orangish brown to match canyon walls
+  const ceilMat = new THREE.MeshStandardMaterial({
+    color: 0x8a5030,
+    roughness: 0.95,
+    metalness: 0.05,
+    side: THREE.DoubleSide,
+  });
+  const ceilWidth = cavernW + 800;
+  const ceilDepth = cavernD + 2000; // massively oversized to embed into canyon walls
+  const ceilGeo = new THREE.BoxGeometry(ceilWidth, 200, ceilDepth);
+  const ceil = new THREE.Mesh(ceilGeo, ceilMat);
+  ceil.position.set(wallX + ceilWidth / 2, cavernH + 100, cz);
+  group.add(ceil);
+
+  // Back wall (far +X side)
+  const backGeo = new THREE.PlaneGeometry(cavernD, cavernH);
+  backGeo.rotateY(-Math.PI / 2); // face -X (toward entrance)
+  const back = new THREE.Mesh(backGeo, rockMat);
+  back.position.set(wallX + cavernW, cavernH / 2, cz);
+  group.add(back);
+
+  // No side walls — the canyon wall cutout wraps around naturally
+
+  // Floor — dark rock
+  const floorGeo = new THREE.PlaneGeometry(cavernW, cavernD);
+  floorGeo.rotateX(-Math.PI / 2);
+  const floorMat = new THREE.MeshStandardMaterial({
+    color: 0x4a3020,
+    roughness: 0.85,
+    metalness: 0.1,
+  });
+  const floor = new THREE.Mesh(floorGeo, floorMat);
+  floor.position.set(cx, 0.5, cz);
+  group.add(floor);
+
+  // NO left wall — that's the open entrance facing the canyon
+
+  // ── Domes — clustered near the entrance so visible from the canyon ──
+  const ex = wallX + 120; // dome cluster center — near the entrance
   const domes: [number, number, number][] = [
-    [200, -400, bz - 300],   // large central dome
-    [140, -720, bz - 200],   // medium left
-    [120, -300, bz - 650],   // medium right-back
-    [160, -640, bz - 600],   // medium far
-    [100, -900, bz - 450],   // small far-left
+    [80,  ex,        cz],          // large central hub
+    [55,  ex + 10,   cz + 150],    // medium front
+    [55,  ex + 10,   cz - 150],    // medium back
+    [60,  ex + 160,  cz + 80],     // medium deeper-front
+    [60,  ex + 160,  cz - 80],     // medium deeper-back
+    [40,  ex + 280,  cz],          // small deepest
+    [35,  ex - 50,   cz + 280],    // small near entrance-front
   ];
 
   for (const [r, x, z] of domes) {
     group.add(createDome(r, x, z));
   }
 
-  // Connecting corridors between adjacent domes
-  group.add(createCorridor(-400, bz - 300, -720, bz - 200, 20));
-  group.add(createCorridor(-400, bz - 300, -300, bz - 650, 20));
-  group.add(createCorridor(-720, bz - 200, -640, bz - 600, 16));
-  group.add(createCorridor(-720, bz - 200, -900, bz - 450, 14));
-  group.add(createCorridor(-640, bz - 600, -300, bz - 650, 16));
+  // ── Connecting corridors ──
+  group.add(createCorridor(ex, cz, ex + 10, cz + 150, 8));
+  group.add(createCorridor(ex, cz, ex + 10, cz - 150, 8));
+  group.add(createCorridor(ex, cz, ex + 160, cz + 80, 8));
+  group.add(createCorridor(ex, cz, ex + 160, cz - 80, 8));
+  group.add(createCorridor(ex + 160, cz + 80, ex + 280, cz, 6));
+  group.add(createCorridor(ex + 160, cz - 80, ex + 280, cz, 6));
+  group.add(createCorridor(ex + 10, cz + 150, ex - 50, cz + 280, 6));
 
-  // Flat pad area under the colony
-  const padGeo = new THREE.CircleGeometry(600, 32);
-  padGeo.rotateX(-Math.PI / 2);
-  const padMat = new THREE.MeshStandardMaterial({
-    color: 0x606060,
-    roughness: 0.7,
-    metalness: 0.2,
-  });
-  const pad = new THREE.Mesh(padGeo, padMat);
-  pad.position.set(-550, 0.1, bz - 420);
-  group.add(pad);
+  // ── Cavern lighting — warm amber glow throughout ──
+  // Central overhead
+  const mainLight = new THREE.PointLight(0xffaa44, 3, 600);
+  mainLight.position.set(cx, cavernH * 0.8, cz);
+  group.add(mainLight);
+
+  // Front fill — illuminates domes facing the canyon opening
+  const frontLight = new THREE.PointLight(0xff9933, 2, 400);
+  frontLight.position.set(cx - 100, 60, cz + 100);
+  group.add(frontLight);
+
+  // Back fill
+  const backLight = new THREE.PointLight(0xff8822, 1.5, 350);
+  backLight.position.set(cx + 80, 50, cz - 100);
+  group.add(backLight);
+
+  // Cool blue accent lights near the floor — tech/industrial feel
+  const blueLight1 = new THREE.PointLight(0x4488ff, 1, 200);
+  blueLight1.position.set(cx - 60, 5, cz + 60);
+  group.add(blueLight1);
+
+  const blueLight2 = new THREE.PointLight(0x4488ff, 1, 200);
+  blueLight2.position.set(cx + 80, 5, cz - 40);
+  group.add(blueLight2);
+
+  // Red warning lights at cavern entrance edges
+  const redLight1 = new THREE.PointLight(0xff2200, 1.5, 150);
+  redLight1.position.set(120, 30, cz - 80);
+  group.add(redLight1);
+
+  const redLight2 = new THREE.PointLight(0xff2200, 1.5, 150);
+  redLight2.position.set(120, 30, cz + 80);
+  group.add(redLight2);
 
   return group;
 }
@@ -543,15 +751,22 @@ export function createCanyonTerrain(
 
   // ── Walls ──
   const leftWall = createWall(-1, config, seed);
-  const rightWall = createWall(1, config, seed + 1337);
+  // Carve a cavern opening in the right wall for the dome colony
+  const rightWall = createWall(1, config, seed + 1337, {
+    zCenter: -7950,
+    zWidth: 900,
+    height: 250,
+    depth: 800,
+  });
   group.add(leftWall, rightWall);
 
   // ── Floor ──
   const floor = createFloor(config, seed);
   group.add(floor);
 
-  // Colony structures disabled — rendering as dot clouds at orbit scale
-  // TODO: revisit dome rendering when viewed from inside the canyon
+  // ── Dome colony — nestled in the canyon near the launch pad ──
+  const colony = createBaseColony();
+  group.add(colony);
 
   // ── Mars planet sphere — massive textured surface ──
   const MARS_RADIUS = 100000;

@@ -658,7 +658,9 @@ export interface SpaceEnvironment {
   sun: THREE.DirectionalLight;
   hemisphere: THREE.HemisphereLight;
   planet: THREE.Group;
+  planetRadius: number;
   moon: THREE.Group;
+  moonRadius: number;
 }
 
 export function createSpaceEnvironment(
@@ -674,10 +676,12 @@ export function createSpaceEnvironment(
   const { sun, hemisphere } = createLighting(scene);
   const planetIndex = Math.floor(Math.random() * PLANET_COUNT);
   const planet = createPlanet(scene, planetIndex);
+  const planetRadius = PLANET_PROFILES[planetIndex % PLANET_PROFILES.length].radius;
   const moon = createMoon(scene);
+  const moonRadius = 60;
 
   // Generate environment map for PBR reflections
   createEnvironmentMap(renderer, scene, camera);
 
-  return { skybox, stars, nebulae, sun, hemisphere, planet, moon };
+  return { skybox, stars, nebulae, sun, hemisphere, planet, planetRadius, moon, moonRadius };
 }

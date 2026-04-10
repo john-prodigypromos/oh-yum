@@ -21,6 +21,7 @@ import { createMarsLanding, updateMarsLanding, isMarsLandingComplete, cleanupMar
 import { setMissionPhase } from './state/LevelState';
 import { setInvertYGetter } from './ui/TouchControls3D';
 import { getInvertY, setInvertY } from './state/Settings';
+import { checkCelestialCollisions } from './systems/EnvironmentLoader';
 
 // ── Globals ──
 let bundle: RendererBundle;
@@ -86,7 +87,7 @@ function init() {
   // Start music on first click (browser autoplay policy requires user gesture)
   const startGlobalMusic = () => {
     if (!globalSound) {
-      globalSound = new SoundSystem();
+      globalSound = SoundSystem.getInstance();
       globalSound.init();
       globalSound.startMusic();
     }
@@ -496,6 +497,12 @@ function startCinematic(): void {
 function startMarsLaunch(): void {
   crosshairEl.style.display = 'block';
   setMissionPhase('launch');
+  // Ensure globalSound exists and its AudioContext is active
+  if (!globalSound) {
+    globalSound = SoundSystem.getInstance();
+    globalSound.init();
+  }
+  globalSound.stopMusic(); // silence music so engine roar is clear
   marsLaunch = createMarsLaunch(bundle.scene, bundle.camera);
 }
 
@@ -683,6 +690,19 @@ function animate() {
       if (text && hud) hud.showTaunt(text);
     };
     updateArena(arena, keys, dt, now, tauntCb);
+
+    // Check planet/moon collisions (high speed = instant death)
+    if (spaceEnv && arena.player.alive) {
+      checkCelestialCollisions(
+        arena.player,
+        [
+          { group: spaceEnv.planet, radius: spaceEnv.planetRadius },
+          { group: spaceEnv.moon, radius: spaceEnv.moonRadius },
+        ],
+        arena.explosions,
+        bundle.camera,
+      );
+    }
 
     // Update HUD
     if (hud) {

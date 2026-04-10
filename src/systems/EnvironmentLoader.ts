@@ -419,13 +419,23 @@ export function createAsteroidBelt(scene: THREE.Scene): LevelEnvironment {
         const dist = _tmpDiff.length();
         const minDist = ast.radius + 20;
         if (dist < minDist) {
+          const speed = player.velocity.length();
           _tmpDiff.normalize();
-          player.position.copy(ast.mesh.position).addScaledVector(_tmpDiff, minDist);
-          const dot = player.velocity.dot(_tmpDiff);
-          if (dot < 0) {
-            player.velocity.addScaledVector(_tmpDiff, -dot * 1.5);
+          if (speed > 40) {
+            // High-speed impact — instant death + explosion
+            player.applyDamage(9999, performance.now());
+            if (explosions && camera) {
+              explosions.spawnDeathWorld(player.position.clone(), camera);
+            }
+          } else {
+            // Low-speed bump — bounce off with minor damage
+            player.position.copy(ast.mesh.position).addScaledVector(_tmpDiff, minDist);
+            const dot = player.velocity.dot(_tmpDiff);
+            if (dot < 0) {
+              player.velocity.addScaledVector(_tmpDiff, -dot * 1.5);
+            }
+            player.applyDamage(3, performance.now());
           }
-          player.applyDamage(3, performance.now());
         }
       }
 
@@ -1027,5 +1037,38 @@ export function createLevelEnvironment(scene: THREE.Scene, level: number): Level
     case 2: return createNebulaFog(scene);
     case 3: return createBlackHole(scene);
     default: return null;
+  }
+}
+
+// ── High-speed collision check for celestial bodies (planet, moon) ──
+// These are in SpaceEnvironment (always present), not per-level LevelEnvironment.
+
+interface CelestialBody {
+  group: THREE.Group;
+  radius: number;
+}
+
+const _celestialDiff = new THREE.Vector3();
+
+/** Check player collision with planet/moon/black hole.
+ *  Speed > 40 on asteroids = death. Any planet/moon hit = death (massive body). */
+export function checkCelestialCollisions(
+  player: Ship3D,
+  bodies: CelestialBody[],
+  explosions?: ExplosionPool,
+  camera?: THREE.PerspectiveCamera,
+): void {
+  if (!player.alive) return;
+  for (const body of bodies) {
+    _celestialDiff.subVectors(player.position, body.group.position);
+    const dist = _celestialDiff.length();
+    const minDist = body.radius + 30;
+    if (dist < minDist) {
+      // Hitting a planet or moon at any speed = instant death
+      player.applyDamage(9999, performance.now());
+      if (explosions && camera) {
+        explosions.spawnDeathWorld(player.position.clone(), camera);
+      }
+    }
   }
 }

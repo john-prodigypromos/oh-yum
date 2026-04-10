@@ -213,7 +213,7 @@ export function createArenaState(
   const cockpitCam = new CockpitCamera(camera);
   const touchControls = new TouchControls3D();
   const mouseControls = new MouseControls();
-  const sound = new SoundSystem();
+  const sound = SoundSystem.getInstance();
   sound.init();
   // Music already playing from title screen — don't restart
 
@@ -274,7 +274,7 @@ export function updateArena(
 
   // Pitch: default = push up → nose up; inverted = push up → nose down (flight-sim)
   const rawKeyPitch = (keys['ArrowUp'] ? -1 : 0) + (keys['ArrowDown'] ? 1 : 0);
-  const keyPitch = getInvertY() ? rawKeyPitch : -rawKeyPitch;
+  const keyPitch = getInvertY() ? -rawKeyPitch : rawKeyPitch;
   const touchPitch = touch.pitch;
 
   // Thrust: E=forward, D=reverse on desktop, touch buttons on mobile
@@ -441,6 +441,8 @@ export function updateArena(
         // ── PLAYER DEATH — massive full-screen explosion sequence ──
         // All effects use a CSS class so clearOverlay can bulk-remove them
         if (evt.target.isPlayer) {
+          state.gameOver = true;
+          state.gameOverTime = now;
           const overlay = document.getElementById('ui-overlay')!;
           cockpitCam.shake(5.0); // extreme shake
 
@@ -547,6 +549,53 @@ export function updateArena(
     state.environment.update(effectiveDt, now, player, enemies, boltPool, state.camera, explosions);
   }
 
+  // ── Collision death — player killed by environment (asteroid/planet/black hole) ──
+  if (!player.alive && !state.gameOver) {
+    state.sound.explosion();
+    cockpitCam.shake(5.0);
+
+    const overlay = document.getElementById('ui-overlay');
+    if (overlay) {
+      // White flash
+      const flash = document.createElement('div');
+      flash.className = 'death-fx';
+      flash.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:white;z-index:50;pointer-events:none;opacity:0.9;transition:opacity 1.5s ease-out;';
+      overlay.appendChild(flash);
+      requestAnimationFrame(() => { flash.style.opacity = '0'; });
+      setTimeout(() => { if (flash.parentNode) flash.remove(); }, 1600);
+
+      // Staggered screen explosions
+      const cx = window.innerWidth / 2;
+      const cy = window.innerHeight / 2;
+      for (let i = 0; i < 5; i++) {
+        setTimeout(() => {
+          explosions.spawnDeath(
+            cx + (Math.random() - 0.5) * 300,
+            cy + (Math.random() - 0.5) * 200,
+          );
+        }, i * 200);
+      }
+      explosions.spawnAt(cx, cy, 500, 'boom1', 3.0);
+
+      // Red vignette
+      const vig = document.createElement('div');
+      vig.className = 'death-fx';
+      vig.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:45;pointer-events:none;background:radial-gradient(ellipse at center, transparent 20%, rgba(200,0,0,0.5) 80%, rgba(100,0,0,0.8) 100%);transition:opacity 2.0s ease-out;';
+      overlay.appendChild(vig);
+      setTimeout(() => { if (vig.parentNode) { vig.style.opacity = '0'; setTimeout(() => { if (vig.parentNode) vig.remove(); }, 2100); } }, 1500);
+
+      // Screen cracks
+      const cracks = document.createElement('div');
+      cracks.className = 'death-fx';
+      cracks.style.cssText = `position:fixed;top:0;left:0;width:100%;height:100%;z-index:46;pointer-events:none;background:linear-gradient(${35+Math.random()*20}deg,transparent 48%,rgba(255,255,255,0.15) 49%,rgba(255,255,255,0.15) 51%,transparent 52%),linear-gradient(${140+Math.random()*30}deg,transparent 48%,rgba(255,255,255,0.1) 49%,rgba(255,255,255,0.1) 51%,transparent 52%),linear-gradient(${80+Math.random()*20}deg,transparent 47%,rgba(255,255,255,0.12) 49%,rgba(255,255,255,0.12) 51%,transparent 53%);transition:opacity 3.0s ease-out;`;
+      overlay.appendChild(cracks);
+      setTimeout(() => { if (cracks.parentNode) { cracks.style.opacity = '0'; setTimeout(() => { if (cracks.parentNode) cracks.remove(); }, 3100); } }, 2000);
+    }
+
+    state.gameOver = true;
+    state.gameOverTime = now;
+  }
+
   // ── Explosions ──
   explosions.update(effectiveDt);
 
@@ -555,13 +604,6 @@ export function updateArena(
 
   // ── Camera ──
   cockpitCam.update(player, dt, input.yaw); // camera uses real dt for smooth feel
-
-  // ── Win/Lose conditions (with delay for explosions to play) ──
-  if (!player.alive && !state.gameOver) {
-    state.gameOver = true;
-    state.gameOverTime = now;
-    // Music keeps playing through game over screen
-  }
 
   const allEnemiesDead = enemies.every(e => !e.alive);
   if (allEnemiesDead && !state.victory) {

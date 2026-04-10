@@ -116,7 +116,7 @@ export function createMarsLanding(
   const cockpitCam = new CockpitCamera(camera);
   const touchControls = new TouchControls3D();
   const mouseControls = new MouseControls();
-  const sound = new SoundSystem();
+  const sound = SoundSystem.getInstance();
   sound.init();
 
   const hud = new HUD3D();
@@ -226,7 +226,7 @@ export function updateMarsLanding(
 
   const keyYaw = (keys['ArrowRight'] ? 1 : 0) + (keys['ArrowLeft'] ? -1 : 0);
   const rawKeyPitch = (keys['ArrowUp'] ? -1 : 0) + (keys['ArrowDown'] ? 1 : 0);
-  const keyPitch = getInvertY() ? rawKeyPitch : -rawKeyPitch;
+  const keyPitch = getInvertY() ? -rawKeyPitch : rawKeyPitch;
   const keyThrust = (keys['KeyE'] ? 1 : 0) + (keys['KeyD'] ? -1 : 0);
 
   const input: ShipInput = {

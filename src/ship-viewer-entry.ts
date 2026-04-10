@@ -3,6 +3,8 @@ import { createEnemyShipGeometry, createPlayerShipGeometry } from './ships/ShipG
 import { createPlayerMaterials, createEnemyMaterials, applyMaterials } from './ships/ShipMaterials';
 import { createAsteroidMesh } from './systems/EnvironmentLoader';
 import { createPlanet as createPlanetFromProfile, PLANET_COUNT } from './renderer/Environment';
+import { createBaseColony } from './terrain/CanyonGeometry';
+
 
 // ── Scene ──
 const scene = new THREE.Scene();
@@ -59,7 +61,7 @@ let spinning = true;
 let updateFn: ((dt: number, now: number) => void) | null = null;
 let cleanupExtras: (() => void) | null = null;
 
-type ViewerObject = 'player' | 'enemy' | 'asteroid' | 'blackhole' | 'planet' | 'moon' | 'marsbase';
+type ViewerObject = 'player' | 'enemy' | 'asteroid' | 'blackhole' | 'planet' | 'moon' | 'marsbase' | 'colony';
 
 // Per-object orbit distances
 const ORBIT_DIST: Record<ViewerObject, number> = {
@@ -70,6 +72,7 @@ const ORBIT_DIST: Record<ViewerObject, number> = {
   planet: 1000,
   moon: 220,
   marsbase: 2200,
+  colony: 1500,
 };
 
 const DESCRIPTIONS: Record<ViewerObject, string> = {
@@ -80,6 +83,7 @@ const DESCRIPTIONS: Record<ViewerObject, string> = {
   planet: 'Procedural planet with atmosphere shell. 5 types cycle on click.',
   moon: 'Icy satellite with procedural crater texture and fracture lines.',
   marsbase: 'Mars canyon with geodesic dome colony on a textured planet sphere. The launch site.',
+  colony: 'Geodesic dome colony with connecting corridors and landing pad. 5 domes of varying size.',
 };
 
 function clearCurrent() {
@@ -730,6 +734,24 @@ function loadMarsBase() {
   updateFn = null;
 }
 
+function loadColony() {
+  clearCurrent();
+  const colony = createBaseColony();
+
+  // Center the colony group (domes are at z=-8000 area)
+  const box = new THREE.Box3().setFromObject(colony);
+  const center = box.getCenter(new THREE.Vector3());
+  colony.position.sub(center);
+
+  currentGroup = colony;
+  scene.add(colony);
+  grid.visible = true;
+  setLighting('planet');
+  keyLight.position.set(500, 400, 300);
+  keyLight.intensity = 2.5;
+  ambientLight.intensity = 0.4;
+}
+
 // ── Loader dispatch ──
 const loaders: Record<ViewerObject, () => void> = {
   player: () => loadShip('player'),
@@ -739,6 +761,7 @@ const loaders: Record<ViewerObject, () => void> = {
   planet: loadPlanet,
   moon: loadMoon,
   marsbase: loadMarsBase,
+  colony: loadColony,
 };
 
 let currentType: ViewerObject = 'player';
@@ -755,6 +778,7 @@ function switchTo(type: ViewerObject) {
     planet: 'VENUS PLANET',
     moon: 'ICE MOON',
     marsbase: 'MARS BASE',
+    colony: 'DOME COLONY',
   }[type];
   document.getElementById('info')!.textContent = DESCRIPTIONS[type];
 
@@ -820,7 +844,7 @@ function animate() {
 animate();
 
 // ── Button handlers ──
-for (const type of ['player', 'enemy', 'asteroid', 'blackhole', 'planet', 'moon', 'marsbase'] as ViewerObject[]) {
+for (const type of ['player', 'enemy', 'asteroid', 'blackhole', 'planet', 'moon', 'marsbase', 'colony'] as ViewerObject[]) {
   document.getElementById(`btn-${type}`)?.addEventListener('click', () => switchTo(type));
 }
 

@@ -112,8 +112,9 @@ export function createMarsLaunch(
   const cockpitCam = new CockpitCamera(camera);
   const touchControls = new TouchControls3D();
   const mouseControls = new MouseControls();
-  const sound = new SoundSystem();
+  const sound = SoundSystem.getInstance();
   sound.init();
+  sound.explosion(); // TEST — do you hear this boom when the scene loads?
   sound.startWindDrone();
 
   // ── HUD ──
@@ -201,7 +202,7 @@ export function updateMarsLaunch(
 
   const keyYaw   = (keys['ArrowRight'] ? 1 : 0) + (keys['ArrowLeft']  ? -1 : 0);
   const rawKeyPitch = (keys['ArrowUp'] ? -1 : 0) + (keys['ArrowDown'] ? 1 : 0);
-  const keyPitch = getInvertY() ? rawKeyPitch : -rawKeyPitch;
+  const keyPitch = getInvertY() ? -rawKeyPitch : rawKeyPitch;
   const keyThrust = (keys['KeyE'] ? 1 : 0) + (keys['KeyD'] ? -1 : 0);
 
   const combinedThrust = Math.max(-1, Math.min(1, keyThrust + touch.thrust));
@@ -213,9 +214,10 @@ export function updateMarsLaunch(
     thrust: combinedThrust,
   };
 
-  // ── First thrust → transition grounded → climbing, fade prompt ──
+  // ── First thrust → transition grounded → climbing, fade prompt, ignite engine ──
   if (state.phase === 'grounded' && combinedThrust > 0) {
     state.phase = 'climbing';
+    sound.startLaunchEngine();
     if (state.promptEl) {
       state.promptEl.style.animation = 'marsPromptFadeOut 0.6s ease-out forwards';
       setTimeout(() => {
@@ -236,30 +238,44 @@ export function updateMarsLaunch(
   // ── Physics ──
   applyShipPhysics(player, input, dt, now, atmosMods);
 
-  // ── Floor clamp ──
+  // ── Floor/surface collision — hitting Mars at speed = death ──
   if (player.position.y < 0) {
+    const impactSpeed = Math.abs(player.velocity.y);
     player.position.y = 0;
-    if (player.velocity.y < 0) {
-      player.velocity.y = 0;
+    player.velocity.y = 0;
+    if (impactSpeed > 40) {
+      player.applyDamage(9999, now);
+      cockpitCam.shake(5.0);
+      sound.explosion();
     }
   }
 
-  // ── Canyon wall collision (simple X bounds) ──
+  // ── Canyon wall collision — high speed = death ──
   const wallHalfWidth = 35 + state.altitude * 0.1;
   if (player.position.x < -wallHalfWidth) {
+    const wallSpeed = Math.abs(player.velocity.x);
     player.position.x = -wallHalfWidth;
-    if (player.velocity.x < 0) {
-      player.velocity.x = Math.abs(player.velocity.x) * 0.5; // bounce
+    if (player.velocity.x < 0) player.velocity.x = Math.abs(player.velocity.x) * 0.5;
+    if (wallSpeed > 40) {
+      player.applyDamage(9999, now);
+      cockpitCam.shake(5.0);
+      sound.explosion();
+    } else {
+      player.applyDamage(2, now);
+      cockpitCam.shake(0.8);
     }
-    player.applyDamage(2, now);
-    cockpitCam.shake(0.8);
   } else if (player.position.x > wallHalfWidth) {
+    const wallSpeed = Math.abs(player.velocity.x);
     player.position.x = wallHalfWidth;
-    if (player.velocity.x > 0) {
-      player.velocity.x = -Math.abs(player.velocity.x) * 0.5; // bounce
+    if (player.velocity.x > 0) player.velocity.x = -Math.abs(player.velocity.x) * 0.5;
+    if (wallSpeed > 40) {
+      player.applyDamage(9999, now);
+      cockpitCam.shake(5.0);
+      sound.explosion();
+    } else {
+      player.applyDamage(2, now);
+      cockpitCam.shake(0.8);
     }
-    player.applyDamage(2, now);
-    cockpitCam.shake(0.8);
   }
 
   // ── Sky color from atmosphere visuals ──
@@ -281,6 +297,11 @@ export function updateMarsLaunch(
   const windT = state.altitude / MARS_ATMOSPHERE.maxAltitude;
   sound.setWindIntensity(Math.min(1, windT));
 
+  // ── Launch engine intensity — ramps with altitude ──
+  if (state.phase === 'climbing') {
+    sound.setLaunchEngineIntensity(Math.min(1, windT * 1.5));
+  }
+
   // ── Nav beacon ──
   state.nav.update(state.camera, player.position);
 
@@ -299,6 +320,7 @@ export function updateMarsLaunch(
     state.orbitTimer = now;
     state.phase = 'orbit';
     sound.stopWindDrone();
+    sound.stopLaunchEngine();
   }
 }
 
@@ -331,6 +353,7 @@ export function cleanupMarsLaunch(
     state.promptEl = null;
   }
 
-  // Stop wind drone
+  // Stop wind drone and launch engine
   state.sound.stopWindDrone();
+  state.sound.stopLaunchEngine();
 }

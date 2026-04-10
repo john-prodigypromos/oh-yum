@@ -7,11 +7,22 @@ export class SoundSystem {
   private masterGain: GainNode | null = null;
   private initialized = false;
 
+  // ── Singleton: one AudioContext for the entire app ──
+  private static _instance: SoundSystem | null = null;
+  static getInstance(): SoundSystem {
+    if (!SoundSystem._instance) {
+      SoundSystem._instance = new SoundSystem();
+    }
+    return SoundSystem._instance;
+  }
+
   /** Must be called from a user gesture (click/tap) to unlock AudioContext */
   init(): void {
     if (this.initialized) return;
     try {
       this.ctx = new AudioContext();
+      // Force-resume in case browser created it suspended
+      if (this.ctx.state === 'suspended') this.ctx.resume();
       this.masterGain = this.ctx.createGain();
       this.masterGain.gain.value = 0.4;
       this.masterGain.connect(this.ctx.destination);
@@ -329,6 +340,22 @@ export class SoundSystem {
   private thrustGain: GainNode | null = null;
   private thrustFilter: BiquadFilterNode | null = null;
   private thrusting = false;
+
+  // ── Launch engine: multi-layered rocket roar ──
+  private launchEngineActive = false;
+  private launchSubOsc: OscillatorNode | null = null;
+  private launchSubGain: GainNode | null = null;
+  private launchRoarOsc: OscillatorNode | null = null;
+  private launchRoarGain: GainNode | null = null;
+  private launchRoarFilter: BiquadFilterNode | null = null;
+  private launchRoar2Osc: OscillatorNode | null = null;
+  private launchRoar2Gain: GainNode | null = null;
+  private launchCrackleNode: AudioBufferSourceNode | null = null;
+  private launchCrackleGain: GainNode | null = null;
+  private launchCrackleFilter: BiquadFilterNode | null = null;
+  private launchDistortion: WaveShaperNode | null = null;
+  private launchOverdriveGain: GainNode | null = null;
+  private launchOverdriveFilter: BiquadFilterNode | null = null;
 
   // ── Atmospheric wind drone ──
   private windOsc: OscillatorNode | null = null;
@@ -912,6 +939,235 @@ export class SoundSystem {
     droneGain.connect(this.masterGain!);
     drone.start(now + 1.0);
     drone.stop(now + 2.5);
+  }
+
+  // ── Launch engine: cinematic multi-layered rocket roar ──
+  // Layers: sub-bass rumble, dual-detuned mid roar, filtered noise crackle,
+  // and a distortion overdrive channel that opens up with intensity.
+
+  startLaunchEngine(): void {
+    if (this.launchEngineActive) return;
+    const ctx = this.ensureCtx();
+    if (!ctx || !this.masterGain) {
+      console.warn('[SoundSystem] startLaunchEngine: no ctx or masterGain', { ctx: !!ctx, masterGain: !!this.masterGain, initialized: this.initialized });
+      return;
+    }
+    console.log('[SoundSystem] startLaunchEngine: ctx.state =', ctx.state, 'masterGain =', this.masterGain.gain.value);
+    this.launchEngineActive = true;
+
+    // Layer 1: Low rumble — sine at 110Hz, audible on laptop speakers
+    this.launchSubOsc = ctx.createOscillator();
+    this.launchSubGain = ctx.createGain();
+    this.launchSubOsc.type = 'sine';
+    this.launchSubOsc.frequency.value = 110;
+    this.launchSubGain.gain.value = 0.25;
+    this.launchSubOsc.connect(this.launchSubGain);
+    this.launchSubGain.connect(this.masterGain);
+    this.launchSubOsc.start();
+
+    // Layer 2: Engine roar — sawtooth at 150Hz through LP filter (rich harmonics)
+    this.launchRoarOsc = ctx.createOscillator();
+    this.launchRoarGain = ctx.createGain();
+    this.launchRoarFilter = this.lpf(ctx, 600);
+    this.launchRoarOsc.type = 'sawtooth';
+    this.launchRoarOsc.frequency.value = 150;
+    this.launchRoarGain.gain.value = 0.18;
+    this.launchRoarOsc.connect(this.launchRoarFilter);
+    this.launchRoarFilter.connect(this.launchRoarGain);
+    this.launchRoarGain.connect(this.masterGain);
+    this.launchRoarOsc.start();
+
+    // Layer 3: Detuned second roar — beating/phasing for thickness
+    this.launchRoar2Osc = ctx.createOscillator();
+    this.launchRoar2Gain = ctx.createGain();
+    const roar2Filter = this.lpf(ctx, 600);
+    this.launchRoar2Osc.type = 'sawtooth';
+    this.launchRoar2Osc.frequency.value = 153; // 3Hz detune from 150Hz
+    this.launchRoar2Gain.gain.value = 0.12;
+    this.launchRoar2Osc.connect(roar2Filter);
+    roar2Filter.connect(this.launchRoar2Gain);
+    this.launchRoar2Gain.connect(this.masterGain);
+    this.launchRoar2Osc.start();
+
+    // Layer 4: Roaring noise — filtered white noise for combustion texture
+    const crackleLen = ctx.sampleRate * 4;
+    const crackleBuf = ctx.createBuffer(1, crackleLen, ctx.sampleRate);
+    const crackleData = crackleBuf.getChannelData(0);
+    for (let i = 0; i < crackleLen; i++) {
+      crackleData[i] = Math.random() * 2 - 1;
+    }
+    this.launchCrackleNode = ctx.createBufferSource();
+    this.launchCrackleNode.buffer = crackleBuf;
+    this.launchCrackleNode.loop = true;
+    this.launchCrackleGain = ctx.createGain();
+    this.launchCrackleFilter = this.lpf(ctx, 800);
+    this.launchCrackleGain.gain.value = 0.12;
+    this.launchCrackleNode.connect(this.launchCrackleFilter);
+    this.launchCrackleFilter.connect(this.launchCrackleGain);
+    this.launchCrackleGain.connect(this.masterGain);
+    this.launchCrackleNode.start();
+
+    // Layer 5: Overdrive screech — distorted sawtooth, kicks in at higher intensity
+    const overdriveOsc = ctx.createOscillator();
+    this.launchDistortion = ctx.createWaveShaper();
+    this.launchOverdriveGain = ctx.createGain();
+    this.launchOverdriveFilter = this.lpf(ctx, 400);
+    overdriveOsc.type = 'sawtooth';
+    overdriveOsc.frequency.value = 110;
+    const curve = new Float32Array(256);
+    for (let i = 0; i < 256; i++) {
+      const x = (i / 128) - 1;
+      curve[i] = Math.tanh(x * 4);
+    }
+    this.launchDistortion.curve = curve;
+    this.launchOverdriveGain.gain.value = 0.0;
+    overdriveOsc.connect(this.launchDistortion);
+    this.launchDistortion.connect(this.launchOverdriveFilter);
+    this.launchOverdriveFilter.connect(this.launchOverdriveGain);
+    this.launchOverdriveGain.connect(this.masterGain);
+    overdriveOsc.start();
+
+    // Fire the initial ignition burst
+    this.launchIgnitionBurst();
+  }
+
+  /** One-shot ignition burst — loud crack + punch when engine fires */
+  private launchIgnitionBurst(): void {
+    const ctx = this.ensureCtx();
+    if (!ctx || !this.masterGain) return;
+    const now = ctx.currentTime;
+
+    // Loud noise crack — the ignition spark (high-frequency content for laptop speakers)
+    const crackLen = ctx.sampleRate * 0.2;
+    const crackBuf = ctx.createBuffer(1, crackLen, ctx.sampleRate);
+    const crackData = crackBuf.getChannelData(0);
+    for (let i = 0; i < crackLen; i++) {
+      crackData[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / crackLen, 3);
+    }
+    const crack = ctx.createBufferSource();
+    crack.buffer = crackBuf;
+    const crackGain = ctx.createGain();
+    const crackFilter = this.lpf(ctx, 3000);
+    crackGain.gain.setValueAtTime(0.5, now);
+    crackGain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+    crack.connect(crackFilter);
+    crackFilter.connect(crackGain);
+    crackGain.connect(this.masterGain);
+    crack.start(now);
+
+    // Ignition punch — 150Hz sine, clearly audible
+    const thump = ctx.createOscillator();
+    const thumpGain = ctx.createGain();
+    thump.type = 'sine';
+    thump.frequency.setValueAtTime(150, now);
+    thump.frequency.exponentialRampToValueAtTime(60, now + 0.4);
+    thumpGain.gain.setValueAtTime(0.6, now);
+    thumpGain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+    thump.connect(thumpGain);
+    thumpGain.connect(this.masterGain);
+    thump.start(now);
+    thump.stop(now + 0.4);
+
+    // Engine swell — sawtooth rising through audible range
+    const swell = ctx.createOscillator();
+    const swellGain = ctx.createGain();
+    const swellFilter = this.lpf(ctx, 1000);
+    swell.type = 'sawtooth';
+    swell.frequency.setValueAtTime(80, now);
+    swell.frequency.linearRampToValueAtTime(200, now + 0.8);
+    swellGain.gain.setValueAtTime(0.001, now);
+    swellGain.gain.linearRampToValueAtTime(0.2, now + 0.5);
+    swellGain.gain.exponentialRampToValueAtTime(0.001, now + 0.9);
+    swell.connect(swellFilter);
+    swellFilter.connect(swellGain);
+    swellGain.connect(this.masterGain);
+    swell.start(now);
+    swell.stop(now + 0.9);
+  }
+
+  /** Set launch engine intensity: 0 = idle rumble, 1 = full overdrive.
+   *  Call every frame during climb — ramps gain, filter cutoffs, and pitch. */
+  setLaunchEngineIntensity(t: number): void {
+    if (!this.launchEngineActive || !this.ctx) return;
+    const intensity = Math.max(0, Math.min(1, t));
+    const now = this.ctx.currentTime;
+
+    // Low rumble: 110→180Hz, gain 0.25→0.35
+    if (this.launchSubOsc && this.launchSubGain) {
+      this.launchSubOsc.frequency.setValueAtTime(110 + intensity * 70, now);
+      this.launchSubGain.gain.setValueAtTime(0.25 + intensity * 0.10, now);
+    }
+
+    // Engine roar: 150→250Hz, filter 600→2000Hz, gain 0.18→0.30
+    if (this.launchRoarOsc && this.launchRoarGain && this.launchRoarFilter) {
+      this.launchRoarOsc.frequency.setValueAtTime(150 + intensity * 100, now);
+      this.launchRoarFilter.frequency.setValueAtTime(600 + intensity * 1400, now);
+      this.launchRoarGain.gain.setValueAtTime(0.18 + intensity * 0.12, now);
+    }
+
+    // Detuned roar tracks main roar
+    if (this.launchRoar2Osc && this.launchRoar2Gain) {
+      this.launchRoar2Osc.frequency.setValueAtTime(153 + intensity * 103, now);
+      this.launchRoar2Gain.gain.setValueAtTime(0.12 + intensity * 0.10, now);
+    }
+
+    // Noise: filter opens 800→3000Hz, gain 0.12→0.22
+    if (this.launchCrackleFilter && this.launchCrackleGain) {
+      this.launchCrackleFilter.frequency.setValueAtTime(800 + intensity * 2200, now);
+      this.launchCrackleGain.gain.setValueAtTime(0.12 + intensity * 0.10, now);
+    }
+
+    // Overdrive: kicks in above 0.3 intensity, screams at full
+    if (this.launchOverdriveGain && this.launchOverdriveFilter) {
+      const overdriveT = Math.max(0, (intensity - 0.3) / 0.7);
+      this.launchOverdriveGain.gain.setValueAtTime(overdriveT * 0.18, now);
+      this.launchOverdriveFilter.frequency.setValueAtTime(400 + overdriveT * 1200, now);
+    }
+  }
+
+  stopLaunchEngine(): void {
+    if (!this.launchEngineActive) return;
+    this.launchEngineActive = false;
+    const now = this.ctx?.currentTime ?? 0;
+    const fadeTime = 0.5;
+
+    // Fade all layers out
+    const gains = [
+      this.launchSubGain,
+      this.launchRoarGain,
+      this.launchRoar2Gain,
+      this.launchCrackleGain,
+      this.launchOverdriveGain,
+    ];
+    for (const g of gains) {
+      if (g && this.ctx) {
+        g.gain.setValueAtTime(g.gain.value, now);
+        g.gain.exponentialRampToValueAtTime(0.001, now + fadeTime);
+      }
+    }
+
+    // Stop oscillators after fade
+    const oscs = [this.launchSubOsc, this.launchRoarOsc, this.launchRoar2Osc];
+    setTimeout(() => {
+      for (const o of oscs) {
+        try { o?.stop(); } catch {}
+      }
+      try { this.launchCrackleNode?.stop(); } catch {}
+    }, (fadeTime + 0.1) * 1000);
+
+    this.launchSubOsc = null;
+    this.launchSubGain = null;
+    this.launchRoarOsc = null;
+    this.launchRoarGain = null;
+    this.launchRoarFilter = null;
+    this.launchRoar2Osc = null;
+    this.launchRoar2Gain = null;
+    this.launchCrackleNode = null;
+    this.launchCrackleGain = null;
+    this.launchCrackleFilter = null;
+    this.launchDistortion = null;
+    this.launchOverdriveGain = null;
+    this.launchOverdriveFilter = null;
   }
 
   // ── Atmospheric wind drone: continuous sawtooth through deep low-pass ──

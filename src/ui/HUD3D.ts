@@ -40,6 +40,10 @@ export class HUD3D {
   private tauntTypewriterIdx = 0;
   private tauntTypewriterTimer = 0;
   private altitudeEl: HTMLDivElement;
+  private descentRateEl: HTMLDivElement;
+  private landingStatusEl: HTMLDivElement;
+  private landingStatusTimer = 0;
+  private lastStatusText = '';
   private missionPhase: 'launch' | 'combat' | 'landing' | null = null;
 
   constructor() {
@@ -269,6 +273,26 @@ export class HUD3D {
       letter-spacing:2px;text-align:right;display:none;
     `;
     this.container.appendChild(this.altitudeEl);
+
+    // Descent rate indicator (below altitude, visible during landing)
+    this.descentRateEl = document.createElement('div');
+    this.descentRateEl.style.cssText = `
+      position:absolute;top:calc(50% + 22px);right:20px;
+      font-family:var(--font-display);font-size:13px;
+      letter-spacing:2px;text-align:right;display:none;
+    `;
+    this.container.appendChild(this.descentRateEl);
+
+    // Landing status callout (centered, below mid-screen)
+    this.landingStatusEl = document.createElement('div');
+    this.landingStatusEl.style.cssText = `
+      position:absolute;top:65%;left:50%;transform:translateX(-50%);
+      font-family:var(--font-display);font-size:clamp(13px,2.5vw,18px);font-weight:700;
+      letter-spacing:3px;text-align:center;pointer-events:none;
+      text-shadow:0 0 10px currentColor;
+      transition:opacity 0.5s;opacity:0;display:none;
+    `;
+    this.container.appendChild(this.landingStatusEl);
 
     overlay.appendChild(this.container);
   }
@@ -510,12 +534,75 @@ export class HUD3D {
     this.missionPhase = phase;
     const isAtmo = phase === 'launch' || phase === 'landing';
     this.altitudeEl.style.display = isAtmo ? 'block' : 'none';
+    this.descentRateEl.style.display = phase === 'landing' ? 'block' : 'none';
+    this.landingStatusEl.style.display = phase === 'landing' ? 'block' : 'none';
   }
 
   updateAltitude(altitude: number): void {
     if (this.missionPhase === 'launch' || this.missionPhase === 'landing') {
       const alt = Math.max(0, Math.round(altitude));
       this.altitudeEl.textContent = `ALT ${alt.toLocaleString()}m`;
+    }
+  }
+
+  updateDescentRate(vSpeed: number): void {
+    if (this.missionPhase !== 'landing') return;
+    const rate = Math.abs(Math.round(vSpeed));
+    const descending = vSpeed < -0.5;
+    this.descentRateEl.textContent = descending ? `▼ ${rate} m/s` : `${rate} m/s`;
+    // Color: green < 15, yellow 15-40, red > 40
+    if (rate < 15) {
+      this.descentRateEl.style.color = '#44ff44';
+    } else if (rate < 40) {
+      this.descentRateEl.style.color = '#ffcc00';
+    } else {
+      this.descentRateEl.style.color = '#ff4444';
+    }
+  }
+
+  updateLandingStatus(altitude: number, vSpeed: number, padDist: number, phase: string): void {
+    if (this.missionPhase !== 'landing') return;
+    let text = '';
+    let color = '#00ffff';
+    const rate = Math.abs(vSpeed);
+
+    if (phase === 'landing' || phase === 'canyon') {
+      if (padDist < 500 && altitude < 300) {
+        text = 'LANDING ZONE AHEAD';
+        color = '#44ff44';
+      } else if (rate > 40 && altitude < 1000) {
+        text = 'TOO FAST — BRAKE';
+        color = '#ff4444';
+      } else if (rate > 25 && altitude < 2000) {
+        text = 'REDUCE SPEED';
+        color = '#ffcc00';
+      } else if (altitude < 2000) {
+        text = 'ON APPROACH';
+        color = '#00ffff';
+      }
+    } else if (phase === 'atmosphere' && rate > 30) {
+      text = 'REDUCE SPEED';
+      color = '#ffcc00';
+    }
+
+    if (text !== this.lastStatusText) {
+      this.lastStatusText = text;
+      this.landingStatusTimer = 3;
+      this.landingStatusEl.textContent = text;
+      this.landingStatusEl.style.color = color;
+      this.landingStatusEl.style.opacity = text ? '1' : '0';
+    }
+  }
+
+  updateLandingStatusTimer(dt: number): void {
+    if (this.landingStatusTimer > 0) {
+      this.landingStatusTimer -= dt;
+      if (this.landingStatusTimer <= 0.5) {
+        this.landingStatusEl.style.opacity = String(Math.max(0, this.landingStatusTimer / 0.5));
+      }
+      if (this.landingStatusTimer <= 0) {
+        this.lastStatusText = '';
+      }
     }
   }
 

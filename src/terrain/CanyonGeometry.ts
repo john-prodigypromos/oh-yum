@@ -77,7 +77,7 @@ export interface CanyonTerrain {
 const DEFAULT_CONFIG: CanyonConfig = {
   length: 20000,
   baseWidth: 120,
-  topWidth: 300,
+  topWidth: 800,      // wide flare at rim — walls merge into Mars surface
   wallHeight: 1500,
 };
 
@@ -281,14 +281,16 @@ export function createFloor(
 
   const PAD_RADIUS = 15;
   const PAD_RADIUS_SQ = PAD_RADIUS * PAD_RADIUS;
+  const PAD_Z = -8000; // must match PAD_POSITION in MarsLanding.ts
 
   for (let i = 0; i < fCount; i++) {
     const x = floorPos.getX(i);
     const y = floorPos.getY(i); // should be ~0 after rotation; Z is "up" in world
     const z = floorPos.getZ(i);
 
-    // Distance from pad centre (world origin)
-    const distSq = x * x + z * z;
+    // Distance from pad centre at (0, PAD_Z)
+    const dzPad = z - PAD_Z;
+    const distSq = x * x + dzPad * dzPad;
     const padFade = 1 - Math.min(1, distSq / (PAD_RADIUS_SQ * 9)); // smooth out to 3× pad radius
 
     // ── Height displacement — flattened near landing pad ──
@@ -334,7 +336,7 @@ export function createFloor(
     metalness: 0.35,
   });
   const padMesh = new THREE.Mesh(padGeo, padMat);
-  padMesh.position.y = 0.05; // tiny lift to prevent z-fighting
+  padMesh.position.set(0, 0.05, PAD_Z);
   floorGroup.add(padMesh);
 
   // ── Landing pad glowing edge ring ──
@@ -348,8 +350,27 @@ export function createFloor(
     metalness: 0.8,
   });
   const ringMesh = new THREE.Mesh(ringGeo, ringMat);
-  ringMesh.position.y = 0.15;
+  ringMesh.position.set(0, 0.15, PAD_Z);
   floorGroup.add(ringMesh);
+
+  // ── Landing beacon — visible glow from altitude ──
+  const beaconLight = new THREE.PointLight(0x00ffff, 2, 1500, 1);
+  beaconLight.position.set(0, 100, PAD_Z);
+  floorGroup.add(beaconLight);
+
+  // Vertical light column — tall transparent cylinder above the pad
+  const columnGeo = new THREE.CylinderGeometry(3, 6, 500, 8, 1, true);
+  const columnMat = new THREE.MeshBasicMaterial({
+    color: 0x00ffff,
+    transparent: true,
+    opacity: 0.06,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+    blending: THREE.AdditiveBlending,
+  });
+  const columnMesh = new THREE.Mesh(columnGeo, columnMat);
+  columnMesh.position.set(0, 250, PAD_Z); // center of 500-unit column
+  floorGroup.add(columnMesh);
 
   return floorGroup;
 }
@@ -401,6 +422,105 @@ export function createArch(
   const mesh = new THREE.Mesh(geo, mat);
   mesh.position.set(0, arcHeight, z);
   return mesh;
+}
+
+// ── 3b. Prodigy Stone Monolith ───────────────────────────
+
+/**
+ * A rough-hewn Mars stone slab with the Prodigy arrow logo
+ * carved into the face. Placed in the canyon near the landing
+ * pad, visible as the player begins their ascent.
+ */
+export function createProdigyMonolith(): THREE.Group {
+  const group = new THREE.Group();
+  const seed = 999;
+
+  // ── Stone slab — 80% of end wall width (750 * 0.8 = 600), tall and imposing ──
+  const slabW = 600, slabH = 600, slabD = 30;
+  const segsW = IS_MOBILE ? 8 : 12;
+  const segsH = IS_MOBILE ? 10 : 16;
+  const segsD = IS_MOBILE ? 2 : 4;
+  const slabGeo = new THREE.BoxGeometry(slabW, slabH, slabD, segsW, segsH, segsD);
+  const pos = slabGeo.attributes.position as THREE.BufferAttribute;
+
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i);
+    const y = pos.getY(i);
+    const z = pos.getZ(i);
+
+    // Noise displacement — rougher at edges for weathered stone look
+    const ns = 0.06;
+    const noise = fbm3D(x * ns + seed, y * ns + seed * 0.5, z * ns, 4) * 1.5
+      + valueNoise3D(x * ns * 3, y * ns * 3, z * ns * 3 + seed) * 0.8;
+
+    // Edge factor: more displacement near slab edges (weathered/chipped)
+    const edgeX = Math.abs(x) / (slabW * 0.5);
+    const edgeY = Math.abs(y) / (slabH * 0.5);
+    const edgeFactor = Math.max(edgeX, edgeY);
+    const disp = noise * (0.5 + edgeFactor * 1.5);
+
+    // Displace outward from center
+    const nx = x / (slabW * 0.5 || 1);
+    const ny = y / (slabH * 0.5 || 1);
+    const nz = z / (slabD * 0.5 || 1);
+    const len = Math.sqrt(nx * nx + ny * ny + nz * nz) || 1;
+
+    pos.setXYZ(i, x + (nx / len) * disp, y + (ny / len) * disp, z + (nz / len) * disp);
+  }
+  slabGeo.computeVertexNormals();
+
+  // Match the canyon wall/end wall Mars rock look
+  const slabMat = new THREE.MeshStandardMaterial({
+    color: new THREE.Color(0.48, 0.34, 0.22), // same dusty sandstone as canyon walls
+    roughness: 0.92,
+    metalness: 0.04,
+    flatShading: true,
+    normalMap: getRockNormalMap(),
+    normalScale: new THREE.Vector2(0.8, 0.8),
+  });
+  const slab = new THREE.Mesh(slabGeo, slabMat);
+  group.add(slab);
+
+  // ── Prodigy logo — carved and glowing on the front face ──
+  const logoTex = new THREE.TextureLoader().load('/portraits/prodigy-logo.png');
+  logoTex.colorSpace = THREE.SRGBColorSpace;
+
+  const logoSize = slabH * 0.6;
+  const logoGeo = new THREE.PlaneGeometry(logoSize, logoSize);
+  const logoMat = new THREE.MeshStandardMaterial({
+    color: new THREE.Color(0.18, 0.08, 0.04), // dark shadow — carved recess in the stone
+    roughness: 0.98,
+    metalness: 0.0,
+    alphaMap: logoTex,          // use logo as transparency mask (white = visible, black = hidden)
+    transparent: true,
+    alphaTest: 0.3,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+    polygonOffset: true,        // prevent Z-fighting with the slab face
+    polygonOffsetFactor: -1,
+    polygonOffsetUnits: -1,
+  });
+  const logoMesh = new THREE.Mesh(logoGeo, logoMat);
+  // Front face — pushed well clear of the slab surface
+  logoMesh.position.set(0, 0, slabD * 0.5 + 1.5);
+  group.add(logoMesh);
+
+  // ── Strong accent light ──
+  const accentLight = new THREE.PointLight(0xff8844, 2.0, 300, 1.5);
+  accentLight.position.set(0, 0, slabD * 0.5 + 30);
+  group.add(accentLight);
+
+  // ── Position: embedded in the end wall, facing the approaching player ──
+  // End wall is at z = config.length/2 = 10000, height 1500, width 750.
+  // Place the monolith flush against it, centered, at mid-height.
+  const endZ = 10000;
+  const mx = canyonMeander(endZ);
+  group.position.set(mx, 1050, endZ - slabD * 0.5 - 2); // high on end wall
+
+  // Face -Z (toward approaching player)
+  group.rotation.y = Math.PI;
+
+  return group;
 }
 
 // ── 4. Distant Mesas ─────────────────────────────────────
@@ -793,6 +913,10 @@ export function createCanyonTerrain(
   // ── Dome colony — nestled in the canyon near the launch pad ──
   const colony = createBaseColony();
   group.add(colony);
+
+  // ── Prodigy stone monolith — carved logo sign in the canyon ──
+  const monolith = createProdigyMonolith();
+  group.add(monolith);
 
   // ── Mars planet sphere — massive textured surface ──
   const MARS_RADIUS = 100000;

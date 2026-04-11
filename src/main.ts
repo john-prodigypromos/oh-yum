@@ -22,6 +22,7 @@ import { setMissionPhase } from './state/LevelState';
 import { setInvertYGetter } from './ui/TouchControls3D';
 import { getInvertY, setInvertY } from './state/Settings';
 import { checkCelestialCollisions } from './systems/EnvironmentLoader';
+// import { preloadShipModels } from './ships/ShipGeometry'; // disabled — using procedural ships
 
 // ── Globals ──
 let bundle: RendererBundle;

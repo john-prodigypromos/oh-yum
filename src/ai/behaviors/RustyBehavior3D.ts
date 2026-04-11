@@ -1,36 +1,34 @@
 // ── Rusty AI Behavior (3D) ───────────────────────────────
-// Cinematic dogfight AI: enemies stay visible at mid-range,
-// cruise in your POV, and gradually close distance for
-// longer, more visual engagements. Think Top Gun, not ambush.
+// Modern jet-fighter AI: boom-and-zoom attack runs with
+// banking turns, lead pursuit, and constant forward motion.
+// Enemies never stall — they always fly at speed.
 
 import * as THREE from 'three';
 import { Ship3D } from '../../entities/Ship3D';
 import { AI } from '../../config';
 import type { AIBehavior3D } from '../AIBehavior3D';
 import type { ShipInput } from '../../systems/PhysicsSystem3D';
+import { steerToward, steerAway, leadIntercept } from '../Steering';
 
 let enemyIndex = 0;
 
-const WORLD_UP = new THREE.Vector3(0, 1, 0);
-
-type Phase = 'cruise' | 'closing' | 'dogfight' | 'breakaway';
+type Phase = 'intercept' | 'attack_run' | 'break_turn' | 'extend';
 
 export class RustyBehavior3D implements AIBehavior3D {
   private fireRate: number;
   private timer = 0;
-  private phase: Phase = 'cruise'; // start visible, cruising at mid-range
+  private phase: Phase = 'intercept';
   private phaseTimer = 0;
   private idx: number;
-  private orbitAngle = 0;
 
-  // Pre-allocated temp objects to avoid per-frame GC pressure
-  private _desiredPos = new THREE.Vector3();
-  private _tmpRight = new THREE.Vector3();
-  private _tmpBias = new THREE.Vector3();
-  private _tmpDir = new THREE.Vector3();
-  private _tmpCurveRight = new THREE.Vector3();
-  private _lookMat = new THREE.Matrix4();
-  private _lookQuat = new THREE.Quaternion();
+  // Break-turn direction: +1 = break right, -1 = break left
+  private breakDir = 1;
+  // Vertical offset per enemy so they don't stack
+  private verticalBias: number;
+
+  // Pre-allocated temp vectors
+  private _interceptPt = new THREE.Vector3();
+  private _waypoint = new THREE.Vector3();
 
   constructor(
     _aimAccuracy: number = AI.RUSTY_AIM_ACCURACY,
@@ -39,8 +37,10 @@ export class RustyBehavior3D implements AIBehavior3D {
   ) {
     this.fireRate = fireRate;
     this.idx = enemyIndex++;
-    this.timer = this.idx * 3;
-    this.orbitAngle = this.idx * Math.PI * 0.7; // stagger orbits
+    this.timer = this.idx * 4; // stagger timing so enemies don't sync
+    this.phaseTimer = this.idx * 2; // stagger initial approach
+    this.breakDir = this.idx % 2 === 0 ? 1 : -1;
+    this.verticalBias = (this.idx % 3 - 1) * 30; // -30, 0, +30
   }
 
   update(self: Ship3D, target: Ship3D, dt: number, now: number): ShipInput & { fire: boolean } {
@@ -50,127 +50,124 @@ export class RustyBehavior3D implements AIBehavior3D {
 
     this.timer += dt;
     this.phaseTimer += dt;
-    this.orbitAngle += dt * (0.3 + this.idx * 0.1);
 
     const distToPlayer = self.position.distanceTo(target.position);
+    const forward = self.getForward();
+    // How well aligned we are with the player (1 = facing them, -1 = facing away)
+    const toPlayer = new THREE.Vector3().subVectors(target.position, self.position).normalize();
+    const facingAlignment = forward.dot(toPlayer);
 
-    // ── Phase transitions — aggressive engagement with shorter passive phases ──
-    if (this.phase === 'cruise' && this.phaseTimer > 3 + this.idx * 1.5) {
-      // Short cruise — close in quickly
-      this.phase = 'closing';
-      this.phaseTimer = 0;
-    } else if (this.phase === 'closing' && (distToPlayer < 80 || this.phaseTimer > 5)) {
-      // Close enough for dogfight
-      this.phase = 'dogfight';
-      this.phaseTimer = 0;
-    } else if (this.phase === 'dogfight' && this.phaseTimer > 12) {
-      // Long dogfight, then break away for another pass
-      this.phase = 'breakaway';
-      this.phaseTimer = 0;
-    } else if (this.phase === 'breakaway' && (distToPlayer > 200 || this.phaseTimer > 3)) {
-      // Quick breakaway, then back to closing (skip cruise on repeat passes)
-      this.phase = 'closing';
-      this.phaseTimer = 0;
+    // ── Phase transitions ──
+    switch (this.phase) {
+      case 'intercept':
+        // Transition to attack run when close and roughly facing the target
+        if (distToPlayer < 160 && facingAlignment > 0.6) {
+          this.phase = 'attack_run';
+          this.phaseTimer = 0;
+        }
+        // Safety: if we somehow got past the player without attacking, reset
+        if (this.phaseTimer > 12) {
+          this.phase = 'attack_run';
+          this.phaseTimer = 0;
+        }
+        break;
+
+      case 'attack_run':
+        // Break off after passing or after time limit
+        if (this.phaseTimer > 2.5 || (this.phaseTimer > 0.8 && facingAlignment < -0.2)) {
+          this.phase = 'break_turn';
+          this.phaseTimer = 0;
+          this.breakDir *= -1; // alternate break direction each pass
+        }
+        break;
+
+      case 'break_turn':
+        // Hard turn for 1.5-2s, then extend
+        if (this.phaseTimer > 1.8) {
+          this.phase = 'extend';
+          this.phaseTimer = 0;
+        }
+        break;
+
+      case 'extend':
+        // Fly away until far enough, then loop back for another pass
+        if (distToPlayer > 200 || this.phaseTimer > 3) {
+          this.phase = 'intercept';
+          this.phaseTimer = 0;
+        }
+        break;
     }
 
-    const desiredPos = this._desiredPos;
+    // ── Steering per phase ──
+    let yaw = 0;
+    let pitch = 0;
+    let thrust = 0.7;
+    let fire = false;
 
     switch (this.phase) {
-      case 'cruise': {
-        // Fly ahead of the player — clearly visible in their forward view
-        // Orbits in the player's forward hemisphere so they can always see the enemy
-        const playerFwd = target.getForward();
-        this._tmpRight.set(-playerFwd.z, 0, playerFwd.x);
-        const orbitRadius = 200 + this.idx * 40;
-        const lateralSwing = Math.sin(this.orbitAngle) * orbitRadius * 0.6;
-        const verticalWave = Math.sin(this.timer * 0.4 + this.idx) * 30;
-
-        // Position ahead of player + lateral swing
-        desiredPos.copy(target.position);
-        desiredPos.addScaledVector(playerFwd, orbitRadius); // always in front
-        desiredPos.addScaledVector(this._tmpRight, lateralSwing);
-        desiredPos.y += verticalWave;
-        break;
-      }
-
-      case 'closing': {
-        // Gradually close distance while staying in the player's forward view
-        const playerFwd = target.getForward();
-        this._tmpRight.set(-playerFwd.z, 0, playerFwd.x);
-        const closingProgress = Math.min(1, this.phaseTimer / 8);
-        const forwardDist = 200 * (1 - closingProgress * 0.7); // 200 → 60
-        const weaveSpeed = 1.5 + this.idx * 0.3;
-        const lateralWeave = Math.sin(this.timer * weaveSpeed) * 40;
-        const verticalWeave = Math.cos(this.timer * weaveSpeed * 0.6) * 20;
-
-        // Stay ahead but get closer
-        desiredPos.copy(target.position);
-        desiredPos.addScaledVector(playerFwd, forwardDist);
-        desiredPos.addScaledVector(this._tmpRight, lateralWeave);
-        desiredPos.y += verticalWeave;
-        break;
-      }
-
-      case 'dogfight': {
-        // Close-range maneuvering — fly around the player at combat distance
-        // Mix of orbiting and darting behind
-        const playerFwd = target.getForward();
-        const combatRadius = 40 + Math.sin(this.timer * 0.8) * 25; // 15-65 range — tighter
-
-        // Orbit with bias toward getting behind the player
-        this._tmpBias.copy(playerFwd).multiplyScalar(-40);
-        this._tmpRight.set(-playerFwd.z, 0, playerFwd.x);
-        const orbitOffset = Math.sin(this.orbitAngle * 1.5) * combatRadius;
-        const verticalBias = Math.cos(this.idx * 1.7 + this.timer * 0.6) * 25;
-
-        desiredPos.set(
-          target.position.x + this._tmpBias.x + this._tmpRight.x * orbitOffset,
-          target.position.y + verticalBias,
-          target.position.z + this._tmpBias.z + this._tmpRight.z * orbitOffset,
+      case 'intercept': {
+        // Lead-pursuit: aim where the player WILL be
+        leadIntercept(
+          self.position, target.position, target.velocity,
+          60, // approximate closing speed
+          this._interceptPt,
         );
+        // Add vertical bias so enemies approach from different angles
+        this._interceptPt.y += this.verticalBias;
+
+        const steer = steerToward(self, this._interceptPt, 2.5, 0.5);
+        yaw = steer.yaw;
+        pitch = steer.pitch;
+        thrust = steer.thrust;
+
+        // Start firing when close and well-aligned
+        if (distToPlayer < 200 && facingAlignment > 0.7) {
+          if (now - self.lastFireTime >= this.fireRate) fire = true;
+        }
         break;
       }
 
-      case 'breakaway': {
-        // Fly away from the player to reset — pull out to visible range
-        this._tmpDir.copy(self.position).sub(target.position);
-        if (this._tmpDir.length() < 0.1) this._tmpDir.set(1, 0, 0);
-        this._tmpDir.normalize();
+      case 'attack_run': {
+        // Fly through the target zone — slight lead corrections, full thrust
+        leadIntercept(
+          self.position, target.position, target.velocity,
+          80,
+          this._interceptPt,
+        );
+        const steer = steerToward(self, this._interceptPt, 1.5, 0.7);
+        yaw = steer.yaw;
+        pitch = steer.pitch;
+        thrust = 1.0; // full afterburner during attack pass
 
-        // Fly outward with a slight curve
-        this._tmpCurveRight.set(-this._tmpDir.z, 0, this._tmpDir.x);
-        const curve = Math.sin(this.timer * 2) * 50;
+        // Fire aggressively during the pass
+        if (distToPlayer < 250 && facingAlignment > 0.3) {
+          if (now - self.lastFireTime >= this.fireRate * 0.7) fire = true;
+        }
+        break;
+      }
 
-        desiredPos.copy(self.position);
-        desiredPos.addScaledVector(this._tmpDir, 120);
-        desiredPos.addScaledVector(this._tmpCurveRight, curve);
-        desiredPos.y += Math.sin(this.timer * 1.5) * 20;
+      case 'break_turn': {
+        // Hard banking turn away from the player
+        const steer = steerAway(self, target.position, 3.5, 0.6, this.breakDir * 0.7);
+        yaw = steer.yaw;
+        pitch = steer.pitch;
+        thrust = steer.thrust;
+        // Add some vertical pull during the break for a more dramatic maneuver
+        pitch += (this.idx % 2 === 0 ? -0.3 : 0.3);
+        pitch = Math.max(-1, Math.min(1, pitch));
+        break;
+      }
+
+      case 'extend': {
+        // Continue flying away — maintain heading, moderate thrust
+        const steer = steerAway(self, target.position, 1.5, 0.5, this.breakDir * 0.3);
+        yaw = steer.yaw;
+        pitch = steer.pitch;
+        thrust = steer.thrust;
         break;
       }
     }
 
-    // Smooth movement — slower lerp for visible, cinematic flight paths
-    const lerpRate = this.phase === 'dogfight'
-      ? Math.min(1, dt * 2.5) // snappier in close combat
-      : Math.min(1, dt * 1.2); // smooth and visible at range
-    self.position.x += (desiredPos.x - self.position.x) * lerpRate;
-    self.position.y += (desiredPos.y - self.position.y) * lerpRate;
-    self.position.z += (desiredPos.z - self.position.z) * lerpRate;
-
-    // Face the player (or face direction of travel during breakaway)
-    const lookTarget = this.phase === 'breakaway' ? desiredPos : target.position;
-    this._lookMat.lookAt(self.position, lookTarget, WORLD_UP);
-    this._lookQuat.setFromRotationMatrix(this._lookMat);
-    self.group.quaternion.slerp(this._lookQuat, Math.min(1, dt * 4));
-
-    // Fire during closing and dogfight phases, at longer range
-    let fire = false;
-    if ((this.phase === 'closing' || this.phase === 'dogfight') && distToPlayer < 200) {
-      if (now - self.lastFireTime >= this.fireRate) {
-        fire = true;
-      }
-    }
-
-    return { yaw: 0, pitch: 0, roll: 0, thrust: 0, fire };
+    return { yaw, pitch, roll: 0, thrust, fire };
   }
 }

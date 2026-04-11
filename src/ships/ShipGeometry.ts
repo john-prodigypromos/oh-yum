@@ -1,9 +1,133 @@
-// ── Procedural Ship Geometry ─────────────────────────────
-// Detailed 3D ship models built from code with PBR materials.
+// ── Ship Geometry ────────────────────────────────────────
+// Loads GLTF models from public/models/ if available,
+// falls back to procedural geometry if not.
 // Player ship: sleek fighter with swept wings + dual engines.
 // Enemy ship: dark gunmetal with red accent lighting.
 
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+// ── GLTF Model Cache ─────────────────────────────────────
+
+const _loader = new GLTFLoader();
+let _playerModelCache: THREE.Group | null = null;
+let _enemyModelCache: THREE.Group | null = null;
+let _modelsPreloaded = false;
+
+/**
+ * Normalize a loaded GLTF scene: center at origin, scale to target size,
+ * orient so +Z is forward, ensure PBR materials.
+ */
+function normalizeModel(scene: THREE.Group, targetSize: number, url = ''): THREE.Group {
+  const group = new THREE.Group();
+  group.add(scene);
+
+  // Compute bounding box and center
+  const box = new THREE.Box3().setFromObject(scene);
+  const center = box.getCenter(new THREE.Vector3());
+  const size = box.getSize(new THREE.Vector3());
+  const maxDim = Math.max(size.x, size.y, size.z);
+
+  // Center the model at origin
+  scene.position.sub(center);
+
+  // Scale to fit target size
+  const scale = targetSize / maxDim;
+  scene.scale.multiplyScalar(scale);
+
+  // Single-mesh Meshy GLBs — vertex-colored dark hull with accent edge glow
+  const isEnemy = url.includes('enemy');
+  const accent = isEnemy ? new THREE.Color(0.8, 0.08, 0.02) : new THREE.Color(0.0, 0.6, 0.9);
+  const hullColor = isEnemy ? new THREE.Color(0.06, 0.06, 0.08) : new THREE.Color(0.10, 0.14, 0.20);
+
+  scene.traverse((child) => {
+    if (!(child instanceof THREE.Mesh)) return;
+    child.castShadow = true;
+    child.receiveShadow = true;
+
+    const geo = child.geometry;
+    const normals = geo.attributes.normal;
+    const count = normals.count;
+    const colors = new Float32Array(count * 3);
+
+    for (let v = 0; v < count; v++) {
+      const nx = normals.getX(v);
+      const ny = normals.getY(v);
+      const nz = normals.getZ(v);
+      const sideFactor = Math.sqrt(nx * nx + nz * nz);
+      const flatness = Math.abs(ny);
+
+      let r = hullColor.r + flatness * 0.06;
+      let g = hullColor.g + flatness * 0.06;
+      let b = hullColor.b + flatness * 0.07;
+
+      const edgeGlow = Math.pow(sideFactor, 3) * 0.3;
+      r += accent.r * edgeGlow;
+      g += accent.g * edgeGlow;
+      b += accent.b * edgeGlow;
+
+      colors[v * 3] = Math.min(1, r);
+      colors[v * 3 + 1] = Math.min(1, g);
+      colors[v * 3 + 2] = Math.min(1, b);
+    }
+
+    geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    child.material = new THREE.MeshStandardMaterial({
+      vertexColors: true,
+      roughness: 0.3,
+      metalness: 0.85,
+      emissive: accent,
+      emissiveIntensity: 0.08,
+      envMapIntensity: 1.0,
+    });
+  });
+
+  return group;
+}
+
+/**
+ * Preload both ship models during title/character select screen.
+ * Call this early so models are cached before gameplay starts.
+ * Safe to call multiple times — only loads once.
+ */
+export async function preloadShipModels(): Promise<void> {
+  if (_modelsPreloaded) return;
+  _modelsPreloaded = true;
+
+  const loadModel = (url: string, targetSize: number): Promise<THREE.Group | null> =>
+    new Promise((resolve) => {
+      _loader.load(
+        url,
+        (gltf) => {
+          const model = normalizeModel(gltf.scene, targetSize, url);
+          resolve(model);
+        },
+        undefined,
+        () => resolve(null), // 404 or error → null, use procedural fallback
+      );
+    });
+
+  const [player, enemy] = await Promise.all([
+    loadModel('/models/player-ship.glb', 8),
+    loadModel('/models/enemy-ship.glb', 6),
+  ]);
+
+  _playerModelCache = player;
+  _enemyModelCache = enemy;
+
+  if (player) console.log('[Ships] Player model loaded from GLTF');
+  if (enemy) console.log('[Ships] Enemy model loaded from GLTF');
+}
+
+/** Get a clone of the loaded player ship model, or null if not available. */
+export function getPlayerShipModel(): THREE.Group | null {
+  return _playerModelCache ? _playerModelCache.clone() : null;
+}
+
+/** Get a clone of the loaded enemy ship model, or null if not available. */
+export function getEnemyShipModel(): THREE.Group | null {
+  return _enemyModelCache ? _enemyModelCache.clone() : null;
+}
 
 /** Player fighter — same silhouette as enemy, different material names
  *  so the player material system colors it differently (blue/cyan). */

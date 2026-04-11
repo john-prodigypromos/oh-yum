@@ -1,13 +1,13 @@
 // ── Bolo Tie Boss AI (Level 1) ───────────────────────────
 // Brute: ram charges, wide turns, slow but hits hard.
 // Telegraphed charge with engine flare, 3x collision damage.
+// Uses physics-based steering — never stalls.
 
 import * as THREE from 'three';
 import { Ship3D } from '../../entities/Ship3D';
 import type { AIBehavior3D } from '../AIBehavior3D';
 import type { ShipInput } from '../../systems/PhysicsSystem3D';
-
-const WORLD_UP = new THREE.Vector3(0, 1, 0);
+import { steerToward, steerAway, leadIntercept } from '../Steering';
 
 type Phase = 'dogfight' | 'charge_telegraph' | 'charging' | 'charge_cooldown' | 'breakaway';
 
@@ -16,19 +16,10 @@ export class BoloTieBehavior3D implements AIBehavior3D {
   private phase: Phase = 'dogfight';
   private phaseTimer = 0;
   private timer = 0;
-  private orbitAngle = 0;
-  private chargeDir = new THREE.Vector3();
   private chargeCooldown = 5;
+  private breakDir = 1;
 
-  // Pre-allocated temp objects to avoid per-frame GC pressure
-  private _desiredPos = new THREE.Vector3();
-  private _tmpRight = new THREE.Vector3();
-  private _tmpBias = new THREE.Vector3();
-  private _tmpDir = new THREE.Vector3();
-  private _tmpCurveRight = new THREE.Vector3();
-  private _tmpLookTarget = new THREE.Vector3();
-  private _lookMat = new THREE.Matrix4();
-  private _lookQuat = new THREE.Quaternion();
+  private _interceptPt = new THREE.Vector3();
 
   constructor(
     _aimAccuracy: number,
@@ -49,11 +40,12 @@ export class BoloTieBehavior3D implements AIBehavior3D {
 
     this.timer += dt;
     this.phaseTimer += dt;
-    this.orbitAngle += dt * 0.25; // wide, slow orbit
+    this.isCharging = false;
 
     const distToPlayer = self.position.distanceTo(target.position);
-    const desiredPos = this._desiredPos;
-    this.isCharging = false;
+    const forward = self.getForward();
+    const toPlayer = new THREE.Vector3().subVectors(target.position, self.position).normalize();
+    const facingAlignment = forward.dot(toPlayer);
 
     // ── Phase transitions ──
     switch (this.phase) {
@@ -64,110 +56,102 @@ export class BoloTieBehavior3D implements AIBehavior3D {
         }
         break;
       case 'charge_telegraph':
-        if (this.phaseTimer > 0.5) {
-          // Lock charge direction toward player
-          this.chargeDir.subVectors(target.position, self.position).normalize();
+        if (this.phaseTimer > 0.8) {
           this.phase = 'charging';
           this.phaseTimer = 0;
         }
         break;
       case 'charging':
-        if (this.phaseTimer > 1.5 || distToPlayer < 25) {
+        if (this.phaseTimer > 2.0 || distToPlayer < 25) {
           this.phase = 'charge_cooldown';
           this.phaseTimer = 0;
+          this.breakDir *= -1;
         }
         break;
       case 'charge_cooldown':
-        if (this.phaseTimer > 2) {
+        if (this.phaseTimer > 1.5) {
           this.phase = 'breakaway';
           this.phaseTimer = 0;
         }
         break;
       case 'breakaway':
-        if (distToPlayer > 180 || this.phaseTimer > 3) {
+        if (distToPlayer > 200 || this.phaseTimer > 3) {
           this.phase = 'dogfight';
           this.phaseTimer = 0;
         }
         break;
     }
 
-    // ── Movement per phase ──
+    // ── Steering per phase ──
+    let yaw = 0;
+    let pitch = 0;
+    let thrust = 0.6;
+    let fire = false;
+
     switch (this.phase) {
       case 'dogfight': {
-        // Standard orbit — wide turns (0.4x rotation feel via slow orbit)
-        const playerFwd = target.getForward();
-        this._tmpRight.set(-playerFwd.z, 0, playerFwd.x);
-        this._tmpBias.copy(playerFwd).multiplyScalar(-30);
-        const orbitOffset = Math.sin(this.orbitAngle) * 80;
-        const verticalBob = Math.cos(this.timer * 0.4) * 20;
+        // Orbit the player with wide turns, firing when aligned
+        leadIntercept(self.position, target.position, target.velocity, 50, this._interceptPt);
+        // Offset to orbit rather than fly straight at them
+        const orbitOffset = Math.sin(this.timer * 0.5) * 80;
+        const right = new THREE.Vector3(-toPlayer.z, 0, toPlayer.x);
+        this._interceptPt.addScaledVector(right, orbitOffset);
+        this._interceptPt.y += Math.cos(this.timer * 0.4) * 20;
 
-        desiredPos.set(
-          target.position.x + this._tmpBias.x + this._tmpRight.x * orbitOffset,
-          target.position.y + verticalBob,
-          target.position.z + this._tmpBias.z + this._tmpRight.z * orbitOffset,
-        );
+        const steer = steerToward(self, this._interceptPt, 1.8, 0.4);
+        yaw = steer.yaw;
+        pitch = steer.pitch;
+        thrust = steer.thrust;
+
+        if (distToPlayer < 200 && facingAlignment > 0.5) {
+          if (now - self.lastFireTime >= this.fireRate) fire = true;
+        }
         break;
       }
 
       case 'charge_telegraph': {
-        // Hold position, face player — engine flare visual (handled by caller)
-        desiredPos.copy(self.position);
+        // Slow down, face the player — winding up for the charge
+        const steer = steerToward(self, target.position, 3.0, 0.1);
+        yaw = steer.yaw;
+        pitch = steer.pitch;
+        thrust = 0.1; // braking
         break;
       }
 
       case 'charging': {
-        // Rush at 2x speed toward locked charge direction
+        // Full-speed ram toward the player
         this.isCharging = true;
-        desiredPos.copy(self.position).addScaledVector(this.chargeDir, 200 * dt * 2);
+        const steer = steerToward(self, target.position, 1.5, 1.0);
+        yaw = steer.yaw;
+        pitch = steer.pitch;
+        thrust = 1.0; // max afterburner
 
-        // Direct position movement for charge (bypass lerp)
-        self.position.addScaledVector(this.chargeDir, 160 * dt);
-
-        // Face charge direction
-        this._tmpLookTarget.copy(self.position).add(this.chargeDir);
-        this._lookMat.lookAt(self.position, this._tmpLookTarget, WORLD_UP);
-        this._lookQuat.setFromRotationMatrix(this._lookMat);
-        self.group.quaternion.slerp(this._lookQuat, Math.min(1, dt * 8));
-
-        return { yaw: 0, pitch: 0, roll: 0, thrust: 0, fire: false };
+        // Add direct velocity boost for the charge feel
+        const chargeFwd = self.getForward();
+        self.velocity.addScaledVector(chargeFwd, 200 * dt);
+        break;
       }
 
       case 'charge_cooldown': {
-        // Drift forward slowly after charge
-        const fwd = self.getForward();
-        desiredPos.copy(self.position).addScaledVector(fwd, 40);
+        // Drift forward after the charge, decelerating
+        thrust = 0.3;
+        // Gentle turn to start recovering
+        const steer = steerAway(self, target.position, 1.0, 0.3, this.breakDir * 0.3);
+        yaw = steer.yaw * 0.5;
+        pitch = steer.pitch * 0.5;
         break;
       }
 
       case 'breakaway': {
-        this._tmpDir.copy(self.position).sub(target.position).normalize();
-        this._tmpCurveRight.set(-this._tmpDir.z, 0, this._tmpDir.x);
-        desiredPos.copy(self.position);
-        desiredPos.addScaledVector(this._tmpDir, 100);
-        desiredPos.addScaledVector(this._tmpCurveRight, Math.sin(this.timer * 1.5) * 40);
+        // Hard turn away to reset for the next charge
+        const steer = steerAway(self, target.position, 2.5, 0.6, this.breakDir * 0.5);
+        yaw = steer.yaw;
+        pitch = steer.pitch;
+        thrust = steer.thrust;
         break;
       }
     }
 
-    // Smooth movement (slower lerp = wider turns)
-    const lerpRate = Math.min(1, dt * 1.5);
-    self.position.x += (desiredPos.x - self.position.x) * lerpRate;
-    self.position.y += (desiredPos.y - self.position.y) * lerpRate;
-    self.position.z += (desiredPos.z - self.position.z) * lerpRate;
-
-    // Face the player
-    this._lookMat.lookAt(self.position, target.position, WORLD_UP);
-    this._lookQuat.setFromRotationMatrix(this._lookMat);
-    self.group.quaternion.slerp(this._lookQuat, Math.min(1, dt * 3));
-
-    // Fire during dogfight and charge_cooldown
-    let fire = false;
-    if ((this.phase === 'dogfight' || this.phase === 'charge_cooldown') && distToPlayer < 200) {
-      if (now - self.lastFireTime >= this.fireRate) {
-        fire = true;
-      }
-    }
-
-    return { yaw: 0, pitch: 0, roll: 0, thrust: 0, fire };
+    return { yaw, pitch, roll: 0, thrust, fire };
   }
 }

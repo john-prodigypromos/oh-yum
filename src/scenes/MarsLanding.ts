@@ -19,6 +19,7 @@ import { applyShipPhysics, type ShipInput } from '../systems/PhysicsSystem3D';
 import { COLORS } from '../config';
 import { currentCharacter, CHARACTERS } from '../state/Character';
 import { getInvertY } from '../state/Settings';
+import { GuidePath } from '../ui/GuidePath';
 
 // ── Constants ──────────────────────────────────────────────
 
@@ -44,6 +45,8 @@ export interface MarsLandingState {
   landedTimer: number;
   missionText: HTMLDivElement | null;
   caveRevealTimer: number;
+  elapsedTime: number;
+  guidePath: GuidePath;
 }
 
 // ── createMarsLanding ─────────────────────────────────────
@@ -73,12 +76,13 @@ export function createMarsLanding(
 
   // Start high above the canyon, slight offset so player navigates into it
   player.position.set(150, MARS_ATMOSPHERE.maxAltitude, -6500);
-  player.velocity.set(0, -15, 0); // initial descent
+  player.velocity.set(-3, -15, -5); // initial descent with drift toward pad
 
-  // Pitch nose slightly down
-  const pitchDown = new THREE.Quaternion();
-  pitchDown.setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI * 0.25);
-  player.group.quaternion.copy(pitchDown);
+  // Orient nose toward the landing pad (down and toward target)
+  const lookMat = new THREE.Matrix4().lookAt(
+    player.position, PAD_POSITION, new THREE.Vector3(0, 1, 0),
+  );
+  player.group.quaternion.setFromRotationMatrix(lookMat);
 
   // ── Canyon terrain ──
   const canyon = createCanyonTerrain(scene);
@@ -126,6 +130,9 @@ export function createMarsLanding(
   const nav = new NavBeacon('HOME BASE');
   nav.setTarget(PAD_POSITION);
 
+  // ── Holographic guide corridor — cyan rings tracing descent path ──
+  const guidePath = new GuidePath(scene, player.position.clone(), PAD_POSITION);
+
   // ── Mission text ──
   const missionText = document.createElement('div');
   missionText.textContent = 'RETURN TO MARS — FOLLOW NAV BEACON';
@@ -166,8 +173,33 @@ export function createMarsLanding(
     sound, hud, nav, canyon, camera,
     dustParticles, altitude: MARS_ATMOSPHERE.maxAltitude,
     phase: 'approach', landedTimer: 0, missionText,
-    caveRevealTimer: 0,
+    caveRevealTimer: 0, elapsedTime: 0, guidePath,
   };
+}
+
+// ── Phase callout helper ──────────────────────────────────
+
+function showPhaseCallout(text: string): void {
+  const el = document.createElement('div');
+  el.textContent = text;
+  el.style.cssText = `
+    position:fixed;top:25%;left:50%;transform:translateX(-50%);
+    font-family:var(--font-display,'Rajdhani',sans-serif);
+    font-size:clamp(14px,3vw,22px);font-weight:700;
+    color:#ffd700;letter-spacing:4px;text-align:center;
+    pointer-events:none;z-index:30;
+    text-shadow:0 0 12px rgba(255,215,0,0.6),0 0 24px rgba(255,180,0,0.3);
+    opacity:0;animation:marsLandFadeIn 1.5s ease-out 0.2s forwards;
+  `;
+  const overlay = document.getElementById('ui-overlay');
+  if (overlay) {
+    overlay.appendChild(el);
+    setTimeout(() => {
+      el.style.transition = 'opacity 1s ease-out';
+      el.style.opacity = '0';
+      setTimeout(() => el.remove(), 1000);
+    }, 3000);
+  }
 }
 
 // ── updateMarsLanding ─────────────────────────────────────
@@ -236,6 +268,16 @@ export function updateMarsLanding(
     thrust: Math.max(-1, Math.min(1, keyThrust + touch.thrust)),
   };
 
+  // ── Auto-orient toward pad during first 2 seconds ──
+  state.elapsedTime += dt;
+  if (state.elapsedTime < 2.0) {
+    const orientMat = new THREE.Matrix4().lookAt(
+      state.player.position, PAD_POSITION, new THREE.Vector3(0, 1, 0),
+    );
+    const targetQuat = new THREE.Quaternion().setFromRotationMatrix(orientMat);
+    state.player.group.quaternion.slerp(targetQuat, dt * 0.8);
+  }
+
   // ── Altitude ──
   state.altitude = state.player.position.y;
 
@@ -249,44 +291,63 @@ export function updateMarsLanding(
     if (state.player.velocity.y < 0) state.player.velocity.y = 0;
   }
 
-  // ── Phase transitions ──
+  // ── Phase transitions with milestone callouts ──
   if (state.phase === 'approach' && state.altitude < MARS_ATMOSPHERE.maxAltitude * 0.8) {
     state.phase = 'atmosphere';
     state.sound.startWindDrone();
     state.cockpitCam.shake(2.0);
+    showPhaseCallout('ENTERING MARS ATMOSPHERE');
   }
 
   if (state.phase === 'atmosphere' && state.altitude < 2000) {
     state.phase = 'canyon';
+    showPhaseCallout('CANYON APPROACH — REDUCE SPEED');
   }
 
   if (state.phase === 'canyon' && state.altitude < 200) {
     state.phase = 'landing';
+    showPhaseCallout('FINAL APPROACH');
   }
 
-  // ── Guided approach toward pad — starts high, strengthens as you descend ──
+  // ── Guided approach toward pad — continuous from max altitude ──
   const dx = PAD_POSITION.x - state.player.position.x;
   const dz = PAD_POSITION.z - state.player.position.z;
   const padDist = Math.sqrt(dx * dx + dz * dz) || 1;
 
-  // Gentle pull from 3000+ altitude (player can still steer, but drifts toward pad)
-  if (state.altitude < 4000) {
-    const highGuide = 0.15 * Math.max(0, 1 - state.altitude / 4000);
-    state.player.velocity.x += (dx / padDist) * highGuide * dt * 30;
-    state.player.velocity.z += (dz / padDist) * highGuide * dt * 30;
-  }
+  // Continuous gentle pull from max altitude: 5% at top → 25% near ground
+  const altFrac = Math.max(0, 1 - state.altitude / MARS_ATMOSPHERE.maxAltitude);
+  const guidanceStrength = 0.05 + 0.20 * altFrac;
+  state.player.velocity.x += (dx / padDist) * guidanceStrength * dt * 30;
+  state.player.velocity.z += (dz / padDist) * guidanceStrength * dt * 30;
 
-  // Stronger correction below 800 altitude and within 600 of pad
+  // Stronger correction below 800m and within 600m of pad
   if (state.altitude < 800 && padDist < 600) {
     const correctionStrength = 0.6 * (1 - state.altitude / 800);
     state.player.velocity.x += (dx / padDist) * correctionStrength * dt * 30;
     state.player.velocity.z += (dz / padDist) * correctionStrength * dt * 30;
   }
 
-  // ── Auto-flare — bleed speed progressively below 100m ──
-  if (state.altitude < 100 && state.player.velocity.y < -3) {
-    const brakeFactor = 0.85 + 0.14 * (state.altitude / 100); // stronger near ground
-    state.player.velocity.y *= brakeFactor;
+  // ── Auto-brake — progressive from 500m, crash-proof below 20m ──
+  if (state.altitude < 500 && state.player.velocity.y < -8) {
+    const brakePower = 1 - state.altitude / 500; // 0 at 500m, 1 at ground
+    const targetSpeed = -3 - (1 - brakePower) * 12; // -15 at 500m, -3 at ground
+    if (state.player.velocity.y < targetSpeed) {
+      state.player.velocity.y = THREE.MathUtils.lerp(
+        state.player.velocity.y, targetSpeed, brakePower * 0.1,
+      );
+    }
+  }
+
+  // Dampen lateral velocity below 200m to prevent overshooting the pad
+  if (state.altitude < 200) {
+    const latBrake = 0.95 + 0.04 * (state.altitude / 200);
+    state.player.velocity.x *= latBrake;
+    state.player.velocity.z *= latBrake;
+  }
+
+  // Hard-clamp descent below 20m — truly crash-proof per spec
+  if (state.altitude < 20 && state.player.velocity.y < -2) {
+    state.player.velocity.y = -2;
   }
 
   // ── Touchdown — wider landing zone ──
@@ -320,14 +381,20 @@ export function updateMarsLanding(
   // ── Nav beacon ──
   state.nav.update(state.camera, state.player.position);
 
+  // ── Guide corridor rings ──
+  state.guidePath.update(state.player.position, now);
+
   // ── Touch controls ──
   state.touchControls.draw();
 
   // ── Camera ──
   state.cockpitCam.update(state.player, dt, input.yaw);
 
-  // ── HUD altitude ──
+  // ── HUD ──
   state.hud.updateAltitude(state.altitude);
+  state.hud.updateDescentRate(state.player.velocity.y);
+  state.hud.updateLandingStatus(state.altitude, state.player.velocity.y, padDist, state.phase);
+  state.hud.updateLandingStatusTimer(dt);
 }
 
 // ── isMarsLandingComplete ─────────────────────────────────
@@ -351,6 +418,7 @@ export function cleanupMarsLanding(
   state.touchControls.destroy();
   state.hud.destroy();
   state.nav.destroy();
+  state.guidePath.destroy(scene);
   state.sound.stopWindDrone();
   if (state.missionText?.parentNode) state.missionText.remove();
 }

@@ -76,6 +76,8 @@ export function createMarsLaunch(
   const canyon = createCanyonTerrain(scene);
   scene.add(canyon.group);
 
+  // (test cube removed — monolith is in CanyonGeometry)
+
   // ── Dust particles — soft circular texture ──
   const dustTexCanvas = document.createElement('canvas');
   dustTexCanvas.width = 32; dustTexCanvas.height = 32;
@@ -114,7 +116,6 @@ export function createMarsLaunch(
   const mouseControls = new MouseControls();
   const sound = SoundSystem.getInstance();
   sound.init();
-  sound.explosion(); // TEST — do you hear this boom when the scene loads?
   sound.startWindDrone();
 
   // ── HUD ──

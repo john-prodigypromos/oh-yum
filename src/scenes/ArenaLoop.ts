@@ -153,6 +153,9 @@ export function createArenaState(
       rotationMult: diff.enemyRotationMult * levelConfig.enemyRotationBonus,
       isPlayer: false,
     });
+    // Give enemies initial forward velocity so they're already flying
+    const initFwd = enemy.getForward();
+    enemy.velocity.copy(initFwd).multiplyScalar(40 * enemy.speedMult);
     enemies.push(enemy);
 
     // Create the right AI — boss AI for the boss, Rusty for grunts
@@ -342,7 +345,8 @@ export function updateArena(
         state.sound.enemyShoot();
       }
     }
-    // AI directly controls enemy position — skip physics
+    // Apply physics so enemies fly with real velocity, drag, and momentum
+    applyShipPhysics(enemy, aiInput, effectiveDt, now);
   }
 
   // ── Player physics ──

@@ -19,6 +19,7 @@ export class SoundSystem {
   /** Must be called from a user gesture (click/tap) to unlock AudioContext */
   init(): void {
     if (this.initialized) return;
+    if (SoundSystem.isMobile) return; // No audio on mobile — desktop only
     try {
       this.ctx = new AudioContext();
       // Force-resume in case browser created it suspended
@@ -404,13 +405,10 @@ export class SoundSystem {
   private visibilityHandler: (() => void) | null = null;
   private musicRetryHandler: (() => void) | null = null;
 
-  private static isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+  private static isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ||
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
   startMusic(): void {
-    // Kill music entirely on iOS/iPadOS — too unreliable
-    if (SoundSystem.isIOS) return;
-
     if (this.musicPlaying) return;
     const ctx = this.ensureCtx();
     if (!ctx || !this.masterGain) return;

@@ -1,13 +1,13 @@
 // ── Bow Tie Boss AI (Level 2) ────────────────────────────
 // Ghost: hit-and-run from the fog, fast, lower HP.
-// Dives in, fires a 2-second burst, retreats into fog.
+// Dives in from fog, fires a burst, retreats at speed.
+// Uses physics-based steering — never stalls.
 
 import * as THREE from 'three';
 import { Ship3D } from '../../entities/Ship3D';
 import type { AIBehavior3D } from '../AIBehavior3D';
 import type { ShipInput } from '../../systems/PhysicsSystem3D';
-
-const WORLD_UP = new THREE.Vector3(0, 1, 0);
+import { steerToward, steerAway, leadIntercept } from '../Steering';
 
 type Phase = 'hidden' | 'approach' | 'attack' | 'retreat';
 
@@ -16,18 +16,13 @@ export class BowTieBehavior3D implements AIBehavior3D {
   private phase: Phase = 'hidden';
   private phaseTimer = 0;
   private timer = 0;
-  private retreatTarget = new THREE.Vector3();
-  private approachDir = new THREE.Vector3();
+  private breakDir = 1;
 
   // Fog visibility range — enemies beyond this are "hidden"
   private readonly FOG_RANGE = 180;
 
-  // Pre-allocated temp objects to avoid per-frame GC pressure
-  private _desiredPos = new THREE.Vector3();
-  private _tmpRight = new THREE.Vector3();
-  private _tmpDir = new THREE.Vector3();
-  private _lookMat = new THREE.Matrix4();
-  private _lookQuat = new THREE.Quaternion();
+  private _interceptPt = new THREE.Vector3();
+  private _retreatPt = new THREE.Vector3();
 
   constructor(
     _aimAccuracy: number,
@@ -47,39 +42,45 @@ export class BowTieBehavior3D implements AIBehavior3D {
     this.phaseTimer += dt;
 
     const distToPlayer = self.position.distanceTo(target.position);
-    const desiredPos = this._desiredPos;
+    const forward = self.getForward();
+    const toPlayer = new THREE.Vector3().subVectors(target.position, self.position).normalize();
+    const facingAlignment = forward.dot(toPlayer);
 
     // ── Phase transitions ──
     switch (this.phase) {
       case 'hidden':
         if (this.phaseTimer > 3 + Math.random() * 2) {
-          // Begin approach from fog
           this.phase = 'approach';
           this.phaseTimer = 0;
-          // Pick approach direction — from a random angle in the fog
+          // Warp to fog edge from a random angle for the ambush
           const angle = Math.random() * Math.PI * 2;
-          this.approachDir.set(Math.cos(angle), (Math.random() - 0.5) * 0.3, Math.sin(angle));
-          // Start position at fog edge
-          self.position.copy(target.position).addScaledVector(this.approachDir, this.FOG_RANGE + 50);
+          const approachDir = new THREE.Vector3(
+            Math.cos(angle), (Math.random() - 0.5) * 0.3, Math.sin(angle),
+          ).normalize();
+          self.position.copy(target.position).addScaledVector(approachDir, this.FOG_RANGE + 50);
+          // Set velocity toward player so we're already flying in
+          self.velocity.copy(approachDir).negate().multiplyScalar(50);
+          // Face toward the player
+          self.group.lookAt(target.position);
+          this.breakDir *= -1;
         }
         break;
       case 'approach':
-        if (distToPlayer < 80 || this.phaseTimer > 3) {
+        if (distToPlayer < 80 || this.phaseTimer > 3.5) {
           this.phase = 'attack';
           this.phaseTimer = 0;
         }
         break;
       case 'attack':
-        if (this.phaseTimer > 2) {
-          // Retreat back into fog
+        if (this.phaseTimer > 2.5) {
           this.phase = 'retreat';
           this.phaseTimer = 0;
-          // Pick random retreat point beyond fog
+          // Set retreat point beyond fog
           const retreatAngle = Math.random() * Math.PI * 2;
-          this.retreatTarget.set(
-            target.position.x + Math.cos(retreatAngle) * (this.FOG_RANGE + 80),
+          this._retreatPt.set(
+            target.position.x + Math.cos(retreatAngle) * (this.FOG_RANGE + 100),
             target.position.y + (Math.random() - 0.5) * 60,
-            target.position.z + Math.sin(retreatAngle) * (this.FOG_RANGE + 80),
+            target.position.z + Math.sin(retreatAngle) * (this.FOG_RANGE + 100),
           );
         }
         break;
@@ -91,71 +92,67 @@ export class BowTieBehavior3D implements AIBehavior3D {
         break;
     }
 
-    // ── Movement per phase ──
+    // ── Steering per phase ──
+    let yaw = 0;
+    let pitch = 0;
+    let thrust = 0.5;
+    let fire = false;
+
     switch (this.phase) {
       case 'hidden': {
-        // Stay beyond fog range, orbit loosely
+        // Circle beyond fog range — always moving, maintaining speed
         const angle = this.timer * 0.5;
-        desiredPos.set(
+        const orbitPt = new THREE.Vector3(
           target.position.x + Math.cos(angle) * (this.FOG_RANGE + 60),
-          target.position.y + Math.sin(this.timer * 0.3) * 30,
+          target.position.y + Math.sin(this.timer * 0.3) * 20,
           target.position.z + Math.sin(angle) * (this.FOG_RANGE + 60),
         );
+        const steer = steerToward(self, orbitPt, 1.5, 0.4);
+        yaw = steer.yaw;
+        pitch = steer.pitch;
+        thrust = steer.thrust;
         break;
       }
 
       case 'approach': {
-        // Dive toward player at 1.2x speed
-        this._tmpDir.copy(target.position).sub(self.position).normalize();
-        desiredPos.copy(self.position).addScaledVector(this._tmpDir, 120 * dt);
+        // Dive toward player at high speed — aggressive intercept
+        leadIntercept(self.position, target.position, target.velocity, 70, this._interceptPt);
+        const steer = steerToward(self, this._interceptPt, 3.0, 0.7);
+        yaw = steer.yaw;
+        pitch = steer.pitch;
+        thrust = 1.0; // full speed ambush dive
         break;
       }
 
       case 'attack': {
-        // Tight orbit around player — close range, aggressive
-        const playerFwd = target.getForward();
-        this._tmpRight.set(-playerFwd.z, 0, playerFwd.x);
-        const combatRadius = 40 + Math.sin(this.timer * 1.5) * 15;
-        const orbitOffset = Math.sin(this.timer * 2) * combatRadius;
-        const verticalBob = Math.cos(this.timer * 1.2) * 15;
+        // Close-range attack pass — tight pursuit, aggressive firing
+        leadIntercept(self.position, target.position, target.velocity, 80, this._interceptPt);
+        // Orbit slightly rather than fly straight through
+        const right = new THREE.Vector3(-toPlayer.z, 0, toPlayer.x);
+        this._interceptPt.addScaledVector(right, Math.sin(this.timer * 2.5) * 30);
 
-        desiredPos.set(
-          target.position.x + this._tmpRight.x * orbitOffset,
-          target.position.y + verticalBob,
-          target.position.z + this._tmpRight.z * orbitOffset,
-        );
+        const steer = steerToward(self, this._interceptPt, 2.5, 0.6);
+        yaw = steer.yaw;
+        pitch = steer.pitch;
+        thrust = steer.thrust;
+
+        // Aggressive burst fire during attack
+        if (distToPlayer < 150 && facingAlignment > 0.3) {
+          if (now - self.lastFireTime >= this.fireRate * 0.6) fire = true;
+        }
         break;
       }
 
       case 'retreat': {
-        // Flee to retreat target
-        desiredPos.copy(self.position);
-        this._tmpDir.copy(this.retreatTarget).sub(self.position).normalize();
-        desiredPos.addScaledVector(this._tmpDir, 140 * dt);
+        // Flee to retreat point at high speed
+        const steer = steerToward(self, this._retreatPt, 2.5, 0.7);
+        yaw = steer.yaw;
+        pitch = steer.pitch;
+        thrust = 1.0; // full speed escape
         break;
       }
     }
 
-    // Smooth movement — faster lerp for this boss (quicker, sneakier)
-    const lerpRate = this.phase === 'attack' ? Math.min(1, dt * 3) : Math.min(1, dt * 2);
-    self.position.x += (desiredPos.x - self.position.x) * lerpRate;
-    self.position.y += (desiredPos.y - self.position.y) * lerpRate;
-    self.position.z += (desiredPos.z - self.position.z) * lerpRate;
-
-    // Face direction of travel during retreat, face player otherwise
-    const lookTarget = this.phase === 'retreat' ? desiredPos : target.position;
-    this._lookMat.lookAt(self.position, lookTarget, WORLD_UP);
-    this._lookQuat.setFromRotationMatrix(this._lookMat);
-    self.group.quaternion.slerp(this._lookQuat, Math.min(1, dt * 5));
-
-    // Fire only during attack phase — aggressive burst
-    let fire = false;
-    if (this.phase === 'attack' && distToPlayer < 150) {
-      if (now - self.lastFireTime >= this.fireRate * 0.7) { // faster fire during attack
-        fire = true;
-      }
-    }
-
-    return { yaw: 0, pitch: 0, roll: 0, thrust: 0, fire };
+    return { yaw, pitch, roll: 0, thrust, fire };
   }
 }

@@ -12,6 +12,12 @@ export interface DifficultyConfig {
   enemyRotationMult: number;
   enemyFireRate: number;
   enemyChaseRange: number;
+  // AI behavior tuning — scales aggression with skill level
+  aiSensitivity: number;     // steering sharpness: 2.0 lazy → 5.0 razor
+  aiAggression: number;      // 0.0-1.0 — pursuit relentlessness, phase duration scaling
+  aiJinkIntensity: number;   // 0.0-1.0 — evasive weaving strength
+  aiLeashRange: number;      // max distance before forced re-engage
+  aiFireCone: number;        // dot-product threshold for allowing fire (lower = wider cone)
 }
 
 export const DIFFICULTY: Record<DifficultyLevel, DifficultyConfig> = {
@@ -25,6 +31,11 @@ export const DIFFICULTY: Record<DifficultyLevel, DifficultyConfig> = {
     enemyRotationMult: 0.8,
     enemyFireRate: 400,
     enemyChaseRange: 500,
+    aiSensitivity: 2.5,
+    aiAggression: 0.4,
+    aiJinkIntensity: 0.2,
+    aiLeashRange: 180,
+    aiFireCone: 0.3,
   },
   intermediate: {
     label: 'INTERMEDIATE',
@@ -36,6 +47,11 @@ export const DIFFICULTY: Record<DifficultyLevel, DifficultyConfig> = {
     enemyRotationMult: 0.75,
     enemyFireRate: 350,
     enemyChaseRange: 700,
+    aiSensitivity: 3.5,
+    aiAggression: 0.7,
+    aiJinkIntensity: 0.5,
+    aiLeashRange: 140,
+    aiFireCone: 0.2,
   },
   expert: {
     label: 'EXPERT',
@@ -47,6 +63,11 @@ export const DIFFICULTY: Record<DifficultyLevel, DifficultyConfig> = {
     enemyRotationMult: 0.9,
     enemyFireRate: 200,
     enemyChaseRange: 900,
+    aiSensitivity: 5.0,
+    aiAggression: 1.0,
+    aiJinkIntensity: 0.8,
+    aiLeashRange: 100,
+    aiFireCone: 0.1,
   },
 };
 

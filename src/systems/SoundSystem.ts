@@ -947,10 +947,8 @@ export class SoundSystem {
     if (this.launchEngineActive) return;
     const ctx = this.ensureCtx();
     if (!ctx || !this.masterGain) {
-      console.warn('[SoundSystem] startLaunchEngine: no ctx or masterGain', { ctx: !!ctx, masterGain: !!this.masterGain, initialized: this.initialized });
       return;
     }
-    console.log('[SoundSystem] startLaunchEngine: ctx.state =', ctx.state, 'masterGain =', this.masterGain.gain.value);
     this.launchEngineActive = true;
 
     // Layer 1: Low rumble — sine at 110Hz, audible on laptop speakers

@@ -23,7 +23,7 @@ import { createPlayerMaterials, applyMaterials } from '../ships/ShipMaterials';
 import { currentCharacter, CHARACTERS } from '../state/Character';
 import { DIFFICULTY, currentDifficulty } from '../state/Difficulty';
 import { COLORS, SHIP } from '../config';
-import { getInvertY } from '../state/Settings';
+// Y-axis: up = nose up, always. No invert option.
 
 // ── State Interface ───────────────────────────────────────
 
@@ -205,16 +205,16 @@ export function updateMarsLaunch(
   // ── Input (mirrors ArenaLoop pattern) ──
   const touch = touchControls.getInput();
 
+  const mouse = mouseControls.getInput();
   const keyYaw   = (keys['ArrowRight'] ? 1 : 0) + (keys['ArrowLeft']  ? -1 : 0);
-  const rawKeyPitch = (keys['ArrowUp'] ? -1 : 0) + (keys['ArrowDown'] ? 1 : 0);
-  const keyPitch = getInvertY() ? -rawKeyPitch : rawKeyPitch;
+  const keyPitch = (keys['ArrowUp'] ? -1 : 0) + (keys['ArrowDown'] ? 1 : 0);
   const keyThrust = (keys['KeyE'] ? 1 : 0) + (keys['KeyD'] ? -1 : 0);
 
   const combinedThrust = Math.max(-1, Math.min(1, keyThrust + touch.thrust));
 
   const input: ShipInput = {
-    yaw:    Math.max(-1, Math.min(1, keyYaw   + touch.yaw)),
-    pitch:  Math.max(-1, Math.min(1, keyPitch + touch.pitch)),
+    yaw:    Math.max(-1, Math.min(1, keyYaw   + touch.yaw + mouse.yaw)),
+    pitch:  Math.max(-1, Math.min(1, keyPitch + touch.pitch + mouse.verticalMove)),
     roll:   0,
     thrust: combinedThrust,
   };

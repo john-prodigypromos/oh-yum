@@ -45,11 +45,11 @@ export class Ship3D {
     this.isPlayer = config.isPlayer;
   }
 
-  /** Forward direction in world space (ship faces +Z locally). */
+  /** Forward direction in world space (ship faces +Z locally).
+   *  Returns a shared scratch vector — treat as ephemeral (do not store). */
+  private static _fwd = new THREE.Vector3();
   getForward(): THREE.Vector3 {
-    const forward = new THREE.Vector3(0, 0, 1);
-    forward.applyQuaternion(this.group.quaternion);
-    return forward;
+    return Ship3D._fwd.set(0, 0, 1).applyQuaternion(this.group.quaternion);
   }
 
   /** Position shorthand. */
@@ -102,6 +102,7 @@ export class Ship3D {
 
     this.shieldRegenTimer += dt * 1000;
     if (this.shieldRegenTimer >= SHIP.SHIELD_REGEN_DELAY) {
+      this.shieldRegenTimer = SHIP.SHIELD_REGEN_DELAY; // cap — prevent runaway accumulation
       this.shield = Math.min(this.maxShield, this.shield + SHIP.SHIELD_REGEN_RATE * dt);
     }
   }

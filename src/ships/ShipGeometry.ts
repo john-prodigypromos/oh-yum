@@ -115,8 +115,7 @@ export async function preloadShipModels(): Promise<void> {
   _playerModelCache = player;
   _enemyModelCache = enemy;
 
-  if (player) console.log('[Ships] Player model loaded from GLTF');
-  if (enemy) console.log('[Ships] Enemy model loaded from GLTF');
+  // Models loaded
 }
 
 /** Get a clone of the loaded player ship model, or null if not available. */

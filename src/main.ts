@@ -19,8 +19,6 @@ import { createCinematic, updateCinematic, cleanupCinematic, type CinematicState
 import { createMarsLaunch, updateMarsLaunch, cleanupMarsLaunch, type MarsLaunchState } from './scenes/MarsLaunch';
 import { createMarsLanding, updateMarsLanding, isMarsLandingComplete, cleanupMarsLanding, type MarsLandingState } from './scenes/MarsLanding';
 import { setMissionPhase } from './state/LevelState';
-import { setInvertYGetter } from './ui/TouchControls3D';
-import { getInvertY, setInvertY } from './state/Settings';
 import { checkCelestialCollisions } from './systems/EnvironmentLoader';
 // import { preloadShipModels } from './ships/ShipGeometry'; // disabled — using procedural ships
 
@@ -48,9 +46,6 @@ function init() {
 
   overlayEl = document.getElementById('ui-overlay') as HTMLDivElement;
   crosshairEl = document.getElementById('crosshair') as HTMLElement;
-
-  // Wire Y-axis invert preference into touch controls
-  setInvertYGetter(getInvertY);
 
   // ── Renderer + environment ──
   bundle = createRenderer(canvas);
@@ -417,48 +412,6 @@ function togglePause(): void {
     hint.textContent = 'Press ESC to resume';
     hint.style.cssText = 'font-size:15px;color:var(--text-dim);letter-spacing:2px;margin-bottom:32px;';
     pauseOverlay.appendChild(hint);
-
-    // ── Y-Axis control preference ──
-    const yAxisRow = document.createElement('div');
-    yAxisRow.style.cssText = 'display:flex;align-items:center;gap:16px;margin-bottom:28px;';
-
-    const yLabel = document.createElement('div');
-    yLabel.style.cssText = 'font-family:var(--font-display);font-size:14px;color:var(--text-dim);letter-spacing:2px;';
-    yLabel.textContent = 'Y-AXIS:';
-    yAxisRow.appendChild(yLabel);
-
-    const yStandard = document.createElement('button');
-    const yInverted = document.createElement('button');
-    const btnBase = 'font-family:var(--font-display);font-size:13px;letter-spacing:2px;padding:8px 18px;border:2px solid;border-radius:6px;background:transparent;cursor:pointer;transition:all 0.2s;';
-
-    function updateYButtons() {
-      if (getInvertY()) {
-        yStandard.style.cssText = btnBase + 'border-color:var(--text-dim);color:var(--text-dim);opacity:0.5;';
-        yInverted.style.cssText = btnBase + 'border-color:var(--cyan);color:var(--cyan);opacity:1;box-shadow:0 0 10px var(--cyan-glow);';
-      } else {
-        yStandard.style.cssText = btnBase + 'border-color:var(--cyan);color:var(--cyan);opacity:1;box-shadow:0 0 10px var(--cyan-glow);';
-        yInverted.style.cssText = btnBase + 'border-color:var(--text-dim);color:var(--text-dim);opacity:0.5;';
-      }
-    }
-
-    yStandard.textContent = 'STANDARD';
-    yStandard.title = 'Push up = nose up';
-    yStandard.addEventListener('click', () => { setInvertY(false); updateYButtons(); });
-    yAxisRow.appendChild(yStandard);
-
-    yInverted.textContent = 'INVERTED';
-    yInverted.title = 'Push up = nose down (flight sim)';
-    yInverted.addEventListener('click', () => { setInvertY(true); updateYButtons(); });
-    yAxisRow.appendChild(yInverted);
-
-    updateYButtons();
-    pauseOverlay.appendChild(yAxisRow);
-
-    // ── Descriptions ──
-    const yDesc = document.createElement('div');
-    yDesc.style.cssText = 'font-size:11px;color:var(--text-dim);letter-spacing:1px;margin-top:-20px;margin-bottom:24px;opacity:0.7;';
-    yDesc.textContent = 'STANDARD: push up → aim up  ·  INVERTED: push up → aim down';
-    pauseOverlay.appendChild(yDesc);
 
     const quitBtn = document.createElement('button');
     quitBtn.textContent = 'QUIT TO TITLE';

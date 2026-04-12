@@ -33,7 +33,7 @@ export function tryFireWeapon(
     _toTarget.subVectors(target.position, ship.position).normalize();
     const forward = ship.getForward();
     const dot = forward.dot(_toTarget);
-    if (dot < 0.3) return false; // target not in enemy's forward cone
+    if (dot < 0.15) return false; // target not in enemy's forward cone
   }
 
   const offsets = ship.isPlayer ? PLAYER_BOLT_OFFSETS : [ENEMY_BOLT_OFFSET];

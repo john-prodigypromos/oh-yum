@@ -1,13 +1,13 @@
 // ── Bishop Boss AI (Level 3) ─────────────────────────────
 // Mastermind: multi-phase, deploys drones, uses black hole gravity.
-// Phase 1 (100-50% HP): Precise surgical dogfight (low jink)
-// Phase 2 (50-20% HP): Evasive + 2 drones (medium jink)
-// Phase 3 (<20% HP): Desperate wild charges (high jink)
-// Distance leash: 200u — never drifts into passive territory.
+// Phase 1 (100-50% HP): Precise surgical dogfight
+// Phase 2 (50-20% HP): Evasive + 2 drones
+// Phase 3 (<20% HP): Desperate wild charges
+// Difficulty-driven aggression and jink evasion.
 
 import * as THREE from 'three';
 import { Ship3D } from '../../entities/Ship3D';
-import type { AIBehavior3D } from '../AIBehavior3D';
+import type { AIBehavior3D, AIConfig } from '../AIBehavior3D';
 import type { ShipInput } from '../../systems/PhysicsSystem3D';
 import { BLACK_HOLE_POS } from '../../systems/EnvironmentLoader';
 import { steerToward, steerAway, leadIntercept, chaos, jinkOverlay } from '../Steering';
@@ -24,7 +24,7 @@ export class BishopBehavior3D implements AIBehavior3D {
   private timer = 0;
   private breakDir = 1;
   private seed = 7.19;
-  private _snapImpulse = 0;
+  private cfg: AIConfig;
 
   // Drone management — Bishop tells ArenaLoop to spawn drones
   dronesRequested = 0;
@@ -46,8 +46,10 @@ export class BishopBehavior3D implements AIBehavior3D {
     _aimAccuracy: number,
     fireRate: number,
     _chaseRange: number,
+    cfg: AIConfig,
   ) {
     this.fireRate = fireRate;
+    this.cfg = cfg;
     this._setSubPhase('dogfight');
   }
 
@@ -59,6 +61,7 @@ export class BishopBehavior3D implements AIBehavior3D {
     this.timer += dt;
     this.phaseTimer += dt;
 
+    const { sensitivity, leashRange } = this.cfg;
     const hpPct = self.hull / self.maxHull;
     const distToPlayer = self.position.distanceTo(target.position);
     const forward = self.getForward();
@@ -80,8 +83,8 @@ export class BishopBehavior3D implements AIBehavior3D {
       this.droneRespawnTimer += dt;
     }
 
-    // ── Distance leash — never drift beyond 200 units ──
-    if (distToPlayer > 200 && this.subPhase !== 'dogfight') {
+    // ── Distance leash — never drift beyond leash range ──
+    if (distToPlayer > leashRange && this.subPhase !== 'dogfight') {
       this._setSubPhase('dogfight');
     }
 
@@ -91,7 +94,7 @@ export class BishopBehavior3D implements AIBehavior3D {
         if (this.subPhase === 'dogfight' && this.phaseTimer > this.phaseDuration) {
           this._setSubPhase('breakaway');
           this.breakDir *= -1;
-        } else if (this.subPhase === 'breakaway' && (distToPlayer > 120 || this.phaseTimer > this.phaseDuration)) {
+        } else if (this.subPhase === 'breakaway' && (distToPlayer > leashRange * 0.6 || this.phaseTimer > this.phaseDuration)) {
           this._setSubPhase('dogfight');
         }
         break;
@@ -112,11 +115,6 @@ export class BishopBehavior3D implements AIBehavior3D {
         break;
     }
 
-    // ── Jink intensity escalates with desperation ──
-    const jinkIntensity = this.bossPhase === 'phase3' ? 1.0
-      : this.bossPhase === 'phase2' ? 0.8
-      : 0.6;
-
     // ── Steering per sub-phase ──
     let yaw = 0;
     let pitch = 0;
@@ -132,8 +130,8 @@ export class BishopBehavior3D implements AIBehavior3D {
         this._interceptPt.addScaledVector(this._right, orbitOffset);
         this._interceptPt.y += chaos(this.timer, this.seed * 1.5) * 20 + 15;
 
-        const sensitivity = this.bossPhase === 'phase1' ? 3.5 : 4.5;
-        const steer = steerToward(self, this._interceptPt, sensitivity, 0.7);
+        const sens = this.bossPhase === 'phase1' ? sensitivity * 0.8 : sensitivity;
+        const steer = steerToward(self, this._interceptPt, sens, 0.7);
         yaw = steer.yaw;
         pitch = steer.pitch;
         thrust = steer.thrust;
@@ -143,15 +141,14 @@ export class BishopBehavior3D implements AIBehavior3D {
           : this.bossPhase === 'phase2'
             ? this.fireRate * 0.6
             : this.fireRate * 0.7;
-        if (distToPlayer < 150 && facingAlignment > 0.2) {
+        if (distToPlayer < 150 && facingAlignment > this.cfg.fireCone) {
           if (now - self.lastFireTime >= effectiveRate) fire = true;
         }
         break;
       }
 
       case 'breakaway': {
-        // Short hard break turn away from player
-        const steer = steerAway(self, target.position, 4.5, 0.75, this.breakDir * 0.8);
+        const steer = steerAway(self, target.position, sensitivity, 0.75, this.breakDir * 0.8);
         yaw = steer.yaw;
         pitch = steer.pitch;
         thrust = steer.thrust;
@@ -159,22 +156,21 @@ export class BishopBehavior3D implements AIBehavior3D {
       }
 
       case 'evasive': {
-        // Phase 2: High-speed evasive flight in tighter arcs — let drones do the work
+        // Phase 2: High-speed evasive flight in tighter arcs
         const evadeAngle = this.timer * 1.2 + chaos(this.timer, this.seed) * 0.6;
-        const evadeRadius = 60 + (chaos(this.timer, this.seed * 2) + 1) * 20; // 60-100u
+        const evadeRadius = 60 + (chaos(this.timer, this.seed * 2) + 1) * 20;
         this._evadePt.set(
           target.position.x + Math.cos(evadeAngle) * evadeRadius,
           target.position.y + Math.sin(this.timer * 0.9) * 35 + 20,
           target.position.z + Math.sin(evadeAngle) * evadeRadius,
         );
-        const steer = steerToward(self, this._evadePt, 2.0, 0.5);
+        const steer = steerToward(self, this._evadePt, sensitivity * 0.5, 0.5);
         yaw = steer.yaw;
         pitch = steer.pitch;
-        // Sudden dodge bursts
         thrust = distToPlayer < 100 ? 1.0 : 0.8;
 
-        // Occasional snap shots
-        if (distToPlayer < 120 && facingAlignment > 0.35) {
+        // Snap shots while evading
+        if (distToPlayer < 120 && facingAlignment > this.cfg.fireCone) {
           if (now - self.lastFireTime >= this.fireRate * 0.8) fire = true;
         }
         break;
@@ -186,49 +182,63 @@ export class BishopBehavior3D implements AIBehavior3D {
         this._toBH.subVectors(this.BH_POS, self.position).normalize();
         this._chargePt.addScaledVector(this._toBH, 40);
 
-        const steer = steerToward(self, this._chargePt, 2.0, 0.9);
+        const steer = steerToward(self, this._chargePt, sensitivity * 0.5, 0.9);
         yaw = steer.yaw;
         pitch = steer.pitch;
         thrust = 1.0;
 
-        // Boost velocity but respect speed cap to prevent teleporting
+        // Boost velocity but respect speed cap
         const chargeFwd = self.getForward();
         self.velocity.addScaledVector(chargeFwd, 100 * dt);
         const spd = self.velocity.length();
         if (spd > 100 * self.speedMult) self.velocity.setLength(100 * self.speedMult);
 
-        if (distToPlayer < 150 && facingAlignment > 0.2) {
+        if (distToPlayer < 150 && facingAlignment > this.cfg.fireCone) {
           if (now - self.lastFireTime >= this.fireRate * 0.35) fire = true;
         }
         break;
       }
     }
 
+    // ── Jink intensity escalates with desperation ──
+    const baseJink = this.bossPhase === 'phase3' ? 1.0
+      : this.bossPhase === 'phase2' ? 0.8
+      : 0.6;
+    const isAttacking = this.subPhase === 'dogfight' || this.subPhase === 'charge';
+    const jinkScale = isAttacking ? 0.3 : 1.0;
+    const jink = jinkOverlay(this.timer, this.seed, this.cfg.jinkIntensity * baseJink * jinkScale);
+    yaw += jink.yaw;
+    pitch += jink.pitch;
+
     yaw = Math.max(-1, Math.min(1, yaw));
     pitch = Math.max(-1, Math.min(1, pitch));
 
-    return { yaw, pitch, roll: 0, thrust, fire };
+    // ── Banking roll ──
+    const roll = -yaw * 0.6;
+
+    return { yaw, pitch, roll, thrust, fire };
   }
 
   private _setSubPhase(subPhase: SubPhase): void {
     this.subPhase = subPhase;
     this.phaseTimer = 0;
-    this._snapImpulse = 0.4 * this.breakDir;
+
+    const aggrScale = 1 - this.cfg.aggression * 0.5;
 
     switch (subPhase) {
       case 'dogfight':
         this.phaseDuration = this.bossPhase === 'phase1'
-          ? 3 + (chaos(this.timer, this.seed) + 1) * 1.5  // 3-6s
-          : 1.5 + (chaos(this.timer, this.seed) + 1) * 1; // 1.5-3.5s
+          ? (3 + (chaos(this.timer, this.seed) + 1) * 1.5) * aggrScale
+          : (1.5 + (chaos(this.timer, this.seed) + 1) * 1) * aggrScale;
         break;
       case 'breakaway':
-        this.phaseDuration = 0.5 + (chaos(this.timer, this.seed) + 1) * 0.3; // 0.5-1.1s
+        this.phaseDuration = (0.5 + (chaos(this.timer, this.seed) + 1) * 0.3) * aggrScale;
         break;
       case 'evasive':
-        this.phaseDuration = 2 + (chaos(this.timer, this.seed) + 1) * 1.0; // 2-4s
+        this.phaseDuration = (2 + (chaos(this.timer, this.seed) + 1) * 1.0) * aggrScale;
         break;
       default:
-        this.phaseDuration = 3;
+        this.phaseDuration = 3 * aggrScale;
         break;
     }
   }

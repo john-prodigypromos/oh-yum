@@ -570,7 +570,7 @@ export function createNebulaFog(scene: THREE.Scene): LevelEnvironment {
     }
 
     // Slowly drift fog center to follow player loosely
-    fogSphere.position.lerp(new THREE.Vector3(0, 0, 0), dt * 0.1);
+    fogSphere.position.multiplyScalar(1 - dt * 0.1); // lerp toward origin without allocation
     innerFog.position.copy(fogSphere.position);
   }
 

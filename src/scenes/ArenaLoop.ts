@@ -15,7 +15,7 @@ import { RustyBehavior3D } from '../ai/behaviors/RustyBehavior3D';
 import { BoloTieBehavior3D } from '../ai/behaviors/BoloTieBehavior3D';
 import { BowTieBehavior3D } from '../ai/behaviors/BowTieBehavior3D';
 import { BishopBehavior3D } from '../ai/behaviors/BishopBehavior3D';
-import type { AIBehavior3D } from '../ai/AIBehavior3D';
+import type { AIBehavior3D, AIConfig } from '../ai/AIBehavior3D';
 import { createPlayerShipGeometry, createEnemyShipGeometry } from '../ships/ShipGeometry';
 import { createPlayerMaterials, createEnemyMaterials, applyMaterials } from '../ships/ShipMaterials';
 import { TouchControls3D } from '../ui/TouchControls3D';
@@ -23,7 +23,6 @@ import { MouseControls } from '../ui/MouseControls';
 import { SoundSystem } from '../systems/SoundSystem';
 import { SHIP, AI, PHYSICS } from '../config';
 import { getCurrentLevel, type LevelConfig } from '../state/LevelState';
-import { getInvertY } from '../state/Settings';
 import { DIFFICULTY, currentDifficulty } from '../state/Difficulty';
 import { ParticleSystem3D } from '../systems/ParticleSystem3D';
 import { createLevelEnvironment, type LevelEnvironment } from '../systems/EnvironmentLoader';
@@ -102,6 +101,13 @@ export function createArenaState(
   scene.add(playerGeo);
 
   const diff = DIFFICULTY[currentDifficulty];
+  const aiCfg: AIConfig = {
+    sensitivity: diff.aiSensitivity,
+    aggression: diff.aiAggression,
+    jinkIntensity: diff.aiJinkIntensity,
+    leashRange: diff.aiLeashRange,
+    fireCone: diff.aiFireCone,
+  };
   const player = new Ship3D({
     group: playerGeo,
     maxHull: diff.playerHull,
@@ -167,6 +173,7 @@ export function createArenaState(
             AI.RUSTY_AIM_ACCURACY * levelConfig.enemyRotationBonus,
             diff.enemyFireRate * levelConfig.enemyFireRateBonus,
             diff.enemyChaseRange,
+            aiCfg,
           );
           villainIds.push('bolo_tie');
           break;
@@ -175,6 +182,7 @@ export function createArenaState(
             AI.RUSTY_AIM_ACCURACY * levelConfig.enemyRotationBonus,
             diff.enemyFireRate * levelConfig.enemyFireRateBonus,
             diff.enemyChaseRange,
+            aiCfg,
           );
           villainIds.push('bow_tie');
           break;
@@ -183,6 +191,7 @@ export function createArenaState(
             AI.RUSTY_AIM_ACCURACY * levelConfig.enemyRotationBonus,
             diff.enemyFireRate * levelConfig.enemyFireRateBonus,
             diff.enemyChaseRange,
+            aiCfg,
           );
           villainIds.push('bishop');
           break;
@@ -191,6 +200,7 @@ export function createArenaState(
             AI.RUSTY_AIM_ACCURACY * levelConfig.enemyRotationBonus,
             diff.enemyFireRate * levelConfig.enemyFireRateBonus,
             diff.enemyChaseRange,
+            aiCfg,
           );
           villainIds.push('');
       }
@@ -199,6 +209,7 @@ export function createArenaState(
         AI.RUSTY_AIM_ACCURACY * levelConfig.enemyRotationBonus,
         diff.enemyFireRate * levelConfig.enemyFireRateBonus,
         diff.enemyChaseRange,
+        aiCfg,
       );
       // Grunts use the villain id from earlier levels
       villainIds.push(i === 0 && level >= 2 ? 'bolo_tie' : i === 1 && level >= 3 ? 'bow_tie' : '');
@@ -268,25 +279,24 @@ export function updateArena(
   const { player, enemies, enemyAIs, boltPool, explosions, particles, cockpitCam, touchControls, mouseControls } = state;
 
   // ── Player input ──
-  // Desktop: Arrow keys move, Space fires, E=thrust, D=reverse
+  // Desktop: Arrow keys + mouse move, Space fires, E=thrust, D=reverse
   // Mobile: touch joystick aims, fire/thrust/reverse buttons
   const touch = touchControls.getInput();
+  const mouse = mouseControls.getInput();
 
-  // Yaw: ArrowLeft / ArrowRight on desktop, touch joystick X on mobile
+  // Yaw: ArrowLeft / ArrowRight on desktop, touch joystick X, mouse X on mobile
   const keyYaw = (keys['ArrowRight'] ? 1 : 0) + (keys['ArrowLeft'] ? -1 : 0);
 
-  // Pitch: default = push up → nose up; inverted = push up → nose down (flight-sim)
-  const rawKeyPitch = (keys['ArrowUp'] ? -1 : 0) + (keys['ArrowDown'] ? 1 : 0);
-  const keyPitch = getInvertY() ? -rawKeyPitch : rawKeyPitch;
-  const touchPitch = touch.pitch;
+  // Pitch: Up = nose UP, Down = nose DOWN. Always.
+  const keyPitch = (keys['ArrowUp'] ? -1 : 0) + (keys['ArrowDown'] ? 1 : 0);
 
   // Thrust: E=forward, D=reverse on desktop, touch buttons on mobile
   const keyThrust = (keys['KeyE'] ? 1 : 0) + (keys['KeyD'] ? -1 : 0);
   const combinedThrust = Math.max(-1, Math.min(1, keyThrust + touch.thrust));
 
   const input: ShipInput = {
-    yaw: Math.max(-1, Math.min(1, keyYaw + touch.yaw)),
-    pitch: Math.max(-1, Math.min(1, keyPitch + touchPitch)),
+    yaw: Math.max(-1, Math.min(1, keyYaw + touch.yaw + mouse.yaw)),
+    pitch: Math.max(-1, Math.min(1, keyPitch + touch.pitch + mouse.verticalMove)),
     roll: 0,
     thrust: combinedThrust,
   };
@@ -534,7 +544,7 @@ export function updateArena(
         }
       }
     } catch (e) {
-      console.error('Damage event error:', e);
+      if (import.meta.env.DEV) console.error('Damage event error:', e);
     }
   }
 
@@ -642,7 +652,7 @@ export function updateArena(
     }
   }
   } catch (e) {
-    console.error('Arena update error:', e);
+    if (import.meta.env.DEV) console.error('Arena update error:', e);
   }
 }
 

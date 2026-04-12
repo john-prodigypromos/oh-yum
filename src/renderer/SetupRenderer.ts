@@ -29,8 +29,8 @@ export function createRenderer(canvas: HTMLCanvasElement): RendererBundle {
     antialias: false, // SMAA handles AA via post-processing
     powerPreference: 'high-performance',
   });
-  // Higher pixel ratio for sharper rendering — desktop gets full DPR, mobile gets 2×
-  renderer.setPixelRatio(isMobile ? Math.min(window.devicePixelRatio, 2) : Math.min(window.devicePixelRatio, 3));
+  // Cap pixel ratio at 2× for all devices — prevents 9× pixel load on retina
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.setSize(w, h);
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 0.9; // slightly brighter exposure for cinematic space look

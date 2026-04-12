@@ -18,6 +18,12 @@ const _yawAxis = new THREE.Vector3(0, 1, 0);
 const _pitchAxis = new THREE.Vector3(1, 0, 0);
 const _rollAxis = new THREE.Vector3(0, 0, 1);
 const _quat = new THREE.Quaternion();
+// Pre-allocated scratch vectors for collision resolution (avoid per-frame GC)
+const _collNormal = new THREE.Vector3();
+const _collDiff = new THREE.Vector3();
+const _collRelVel = new THREE.Vector3();
+const _collImpulse = new THREE.Vector3();
+const _wallNormal = new THREE.Vector3();
 
 export function applyShipPhysics(ship: Ship3D, input: ShipInput, dt: number, now: number, atmosphere?: AtmosphereModifiers): void {
   if (!ship.alive) return;
@@ -34,6 +40,11 @@ export function applyShipPhysics(ship: Ship3D, input: ShipInput, dt: number, now
   if (input.pitch !== 0) {
     _quat.setFromAxisAngle(_pitchAxis, input.pitch * rotSpeed * 0.9 * dt);
     ship.group.quaternion.multiply(_quat); // multiply = local space
+  }
+  // Roll around LOCAL Z-axis (visual banking for enemy ships)
+  if (input.roll !== 0) {
+    _quat.setFromAxisAngle(_rollAxis, input.roll * rotSpeed * 0.5 * dt);
+    ship.group.quaternion.multiply(_quat);
   }
 
   ship.group.quaternion.normalize();
@@ -85,11 +96,11 @@ export function applyShipPhysics(ship: Ship3D, input: ShipInput, dt: number, now
     ship.position.setLength(ARENA.RADIUS);
 
     // Reflect velocity off the sphere normal (inward)
-    const normal = ship.position.clone().normalize().negate();
-    const dot = ship.velocity.dot(normal);
+    _wallNormal.copy(ship.position).normalize().negate();
+    const dot = ship.velocity.dot(_wallNormal);
     if (dot < 0) {
       // Only bounce if moving outward
-      ship.velocity.addScaledVector(normal, -2 * dot * PHYSICS.WALL_BOUNCE_FACTOR);
+      ship.velocity.addScaledVector(_wallNormal, -2 * dot * PHYSICS.WALL_BOUNCE_FACTOR);
     }
 
     // Wall damage
@@ -109,27 +120,27 @@ export function checkShipCollision(a: Ship3D, b: Ship3D, hitboxRadius: number): 
 
 /** Apply collision response — bounce both ships apart + damage. */
 export function resolveShipCollision(a: Ship3D, b: Ship3D, hitboxRadius: number, now: number): void {
-  const diff = new THREE.Vector3().subVectors(a.position, b.position);
-  const dist = diff.length();
-  if (dist < 0.01) diff.set(1, 0, 0); // prevent zero-length
+  _collDiff.subVectors(a.position, b.position);
+  const dist = _collDiff.length();
+  if (dist < 0.01) _collDiff.set(1, 0, 0); // prevent zero-length
 
-  const normal = diff.normalize();
+  _collNormal.copy(_collDiff).normalize();
   const overlap = hitboxRadius * 2 - dist;
 
   // Separate ships
   if (overlap > 0) {
-    a.position.addScaledVector(normal, overlap * 0.5);
-    b.position.addScaledVector(normal, -overlap * 0.5);
+    a.position.addScaledVector(_collNormal, overlap * 0.5);
+    b.position.addScaledVector(_collNormal, -overlap * 0.5);
   }
 
   // Bounce velocities
-  const relVel = new THREE.Vector3().subVectors(a.velocity, b.velocity);
-  const velAlongNormal = relVel.dot(normal);
+  _collRelVel.subVectors(a.velocity, b.velocity);
+  const velAlongNormal = _collRelVel.dot(_collNormal);
   if (velAlongNormal > 0) return; // separating
 
-  const impulse = normal.clone().multiplyScalar(-velAlongNormal * 0.8);
-  a.velocity.add(impulse);
-  b.velocity.sub(impulse);
+  _collImpulse.copy(_collNormal).multiplyScalar(-velAlongNormal * 0.8);
+  a.velocity.add(_collImpulse);
+  b.velocity.sub(_collImpulse);
 
   // Collision damage based on relative speed
   const impactSpeed = Math.abs(velAlongNormal);

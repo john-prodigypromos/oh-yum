@@ -111,9 +111,11 @@ export function leadIntercept(
   out: THREE.Vector3,
 ): THREE.Vector3 {
   const dist = selfPos.distanceTo(targetPos);
-  const t = closingSpeed > 1 ? dist / closingSpeed : 1;
-  // Predict target position after time t (clamp to prevent wild overshoot)
-  out.copy(targetPos).addScaledVector(targetVel, Math.min(t, 3) * 0.6);
+  const rawT = closingSpeed > 1 ? dist / closingSpeed : 1;
+  // At close range, clamp prediction tighter to prevent oscillation
+  const maxT = dist < 30 ? 0.3 : 3;
+  const damping = dist < 50 ? 0.3 : 0.6;
+  out.copy(targetPos).addScaledVector(targetVel, Math.min(rawT, maxT) * damping);
   return out;
 }
 

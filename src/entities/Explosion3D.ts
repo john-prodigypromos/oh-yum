@@ -244,7 +244,7 @@ export class ExplosionPool {
     this.spawnAt(pos0.x + jit(10), pos0.y + jit(10), 200, 'boom2', 2.3);
 
     // ── Secondary fireballs — staggered waves ──
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 3; i++) {
       const delay = i * 40 + Math.random() * 100;
       const size = 80 + Math.random() * 120;
       setTimeout(() => {
@@ -256,7 +256,7 @@ export class ExplosionPool {
     }
 
     // ── Smoke clouds — large dark billowing ──
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 3; i++) {
       const delay = 50 + Math.random() * 800;
       const size = 80 + Math.random() * 140;
       setTimeout(() => {
@@ -268,7 +268,7 @@ export class ExplosionPool {
     }
 
     // ── Delayed fireballs — sustained burn ──
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 5; i++) {
       const delay = 20 + Math.random() * 1400;
       const size = 30 + Math.random() * 110;
       setTimeout(() => {
@@ -280,7 +280,7 @@ export class ExplosionPool {
     }
 
     // ── Ember sparks — tiny bright fast ──
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 5; i++) {
       const angle = Math.random() * Math.PI * 2;
       const dist = 20 + Math.random() * 120;
       const delay = Math.random() * 600;
@@ -297,7 +297,7 @@ export class ExplosionPool {
     }
 
     // ── Debris chunks — tumbling outward ──
-    for (let i = 0; i < 15; i++) {
+    for (let i = 0; i < 8; i++) {
       const angle = Math.random() * Math.PI * 2;
       const dist = 20 + Math.random() * 150;
       const delay = Math.random() * 500;

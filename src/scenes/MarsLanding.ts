@@ -18,7 +18,7 @@ import { MARS_ATMOSPHERE, getAtmosphereModifiers, getAtmosphereVisuals } from '.
 import { applyShipPhysics, type ShipInput } from '../systems/PhysicsSystem3D';
 import { COLORS } from '../config';
 import { currentCharacter, CHARACTERS } from '../state/Character';
-import { getInvertY } from '../state/Settings';
+// Y-axis: up = nose up, always. No invert option.
 import { GuidePath } from '../ui/GuidePath';
 
 // ── Constants ──────────────────────────────────────────────
@@ -257,13 +257,12 @@ export function updateMarsLanding(
   const mouse = state.mouseControls.getInput();
 
   const keyYaw = (keys['ArrowRight'] ? 1 : 0) + (keys['ArrowLeft'] ? -1 : 0);
-  const rawKeyPitch = (keys['ArrowUp'] ? -1 : 0) + (keys['ArrowDown'] ? 1 : 0);
-  const keyPitch = getInvertY() ? -rawKeyPitch : rawKeyPitch;
+  const keyPitch = (keys['ArrowUp'] ? -1 : 0) + (keys['ArrowDown'] ? 1 : 0);
   const keyThrust = (keys['KeyE'] ? 1 : 0) + (keys['KeyD'] ? -1 : 0);
 
   const input: ShipInput = {
-    yaw:    Math.max(-1, Math.min(1, keyYaw + touch.yaw + (mouse.yaw || 0))),
-    pitch:  Math.max(-1, Math.min(1, keyPitch + touch.pitch)),
+    yaw:    Math.max(-1, Math.min(1, keyYaw + touch.yaw + mouse.yaw)),
+    pitch:  Math.max(-1, Math.min(1, keyPitch + touch.pitch + mouse.verticalMove)),
     roll:   0,
     thrust: Math.max(-1, Math.min(1, keyThrust + touch.thrust)),
   };

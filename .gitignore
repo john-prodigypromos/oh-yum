@@ -1,3 +1,10 @@
 .superpowers/
 node_modules/
 dist/
+.DS_Store
+_phaser_backup/
+OH-YUM CHARACTERS/
+*.log
+.env*.local
+.vscode/
+.idea/

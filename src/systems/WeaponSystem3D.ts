@@ -15,6 +15,7 @@ const ENEMY_BOLT_OFFSET = new THREE.Vector3(0, 0, 3);
 
 const _offset = new THREE.Vector3();
 const _dir = new THREE.Vector3();
+const _toTarget = new THREE.Vector3();
 
 export function tryFireWeapon(
   ship: Ship3D,
@@ -27,33 +28,12 @@ export function tryFireWeapon(
   if (now - ship.lastFireTime < rate) return false;
   ship.lastFireTime = now;
 
-  // Enemy ships can only fire from the player's BLIND SPOTS — behind, above, or below.
-  // This prevents unrealistic damage when enemies are in the player's forward field of view.
+  // Enemy ships must be facing the target to fire (forward cone check)
   if (!ship.isPlayer && target && target.alive) {
-    // 1) Enemy must be facing the target (forward cone check)
-    const toTarget = target.position.clone().sub(ship.position).normalize();
+    _toTarget.subVectors(target.position, ship.position).normalize();
     const forward = ship.getForward();
-    const dot = forward.dot(toTarget);
+    const dot = forward.dot(_toTarget);
     if (dot < 0.3) return false; // target not in enemy's forward cone
-
-    // 2) Enemy must be in the player's blind zone — NOT in front of the player
-    const playerForward = target.getForward();
-    const playerToEnemy = ship.position.clone().sub(target.position);
-    const distToTarget = playerToEnemy.length();
-    if (distToTarget < 0.1) return false;
-    playerToEnemy.normalize();
-
-    // Horizontal dot: >0 means enemy is in front of player, <0 means behind
-    const facingDot = playerForward.dot(playerToEnemy);
-
-    // Vertical offset: how far above/below the player the enemy is
-    const verticalOffset = Math.abs(ship.position.y - target.position.y);
-    const isAboveOrBelow = verticalOffset > 10; // must be well above or below
-
-    // Allow fire only if: enemy is behind player OR significantly above/below
-    // facingDot > 0 = in front of player, < 0 = behind player
-    const isBehind = facingDot < -0.3; // must be clearly behind — no flank cheese
-    if (!isBehind && !isAboveOrBelow) return false;
   }
 
   const offsets = ship.isPlayer ? PLAYER_BOLT_OFFSETS : [ENEMY_BOLT_OFFSET];

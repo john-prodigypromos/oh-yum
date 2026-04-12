@@ -217,8 +217,6 @@ export class HUD3D {
 
     this.container.appendChild(bottomLeft);
 
-    // Bottom-right: branding
-    this.container.appendChild(el('div', { class: 'hud-bottom-right' }, 'PRIDAY LABS'));
 
     // Desktop controls hint (hidden on touch devices)
     const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
@@ -268,7 +266,7 @@ export class HUD3D {
     // Altitude indicator (visible during launch/landing phases)
     this.altitudeEl = document.createElement('div');
     this.altitudeEl.style.cssText = `
-      position:absolute;top:50%;right:20px;transform:translateY(-50%);
+      position:absolute;top:25%;right:20px;transform:translateY(-50%);
       font-family:var(--font-display);font-size:14px;color:var(--cyan);
       letter-spacing:2px;text-align:right;display:none;
     `;
@@ -277,7 +275,7 @@ export class HUD3D {
     // Descent rate indicator (below altitude, visible during landing)
     this.descentRateEl = document.createElement('div');
     this.descentRateEl.style.cssText = `
-      position:absolute;top:calc(50% + 22px);right:20px;
+      position:absolute;top:calc(25% + 22px);right:20px;
       font-family:var(--font-display);font-size:13px;
       letter-spacing:2px;text-align:right;display:none;
     `;

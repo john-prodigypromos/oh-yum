@@ -249,10 +249,6 @@ function showTitleOverlay(): void {
     }
   }
 
-  const footer = document.createElement('div');
-  footer.textContent = 'PRIDAY LABS';
-  footer.className = 'brand-footer';
-  panel.appendChild(footer);
 }
 
 function showCharSelectOverlay(): void {

@@ -593,8 +593,9 @@ export function createNebulaFog(scene: THREE.Scene): LevelEnvironment {
 // accretion disk with turbulent filaments, radial sparks, thick
 // spiral gas arms, volumetric glow, and real gravity pull.
 
-/** Black hole world position — exported so AI behaviors can reference it. */
-export const BLACK_HOLE_POS = new THREE.Vector3(600, -80, -400);
+/** Black hole world position — exported so AI behaviors can reference it.
+ *  Placed far from planets (800,-300,-1200) and moon (-600,200,-900). */
+export const BLACK_HOLE_POS = new THREE.Vector3(-1800, 200, 1600);
 
 // ── GLSL snippets for the accretion disk shader ──
 

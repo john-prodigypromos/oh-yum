@@ -65,7 +65,7 @@ export class TouchControls3D {
     this.reverseRadius = Math.round(ref * 0.09);
 
     // Right-side button cluster:
-    // THRUST (green) = bottom-right, just above "PRIDAY LABS"
+    // THRUST (green) = bottom-right
     // REVERSE (red) = same row, left of THRUST
     // FIRE (blue) = above THRUST, slightly more spacing than the horizontal gap
     const rMargin = Math.round(ref * 0.18);          // right edge inset

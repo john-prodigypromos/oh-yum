@@ -131,11 +131,11 @@ export function createArenaState(
     enemyGeo.scale.set(bossScale, bossScale, bossScale);
     applyMaterials(enemyGeo, createEnemyMaterials());
 
-    // Spawn at visible mid-range — close enough to see, far enough to chase
+    // Spawn at close combat range — fight starts within seconds
     const angle = Math.random() * Math.PI * 2;
-    const baseDist = 600 + level * 200; // L1: 800, L2: 1000, L3: 1200
-    const dist = baseDist + Math.random() * 400;
-    const elevation = (Math.random() - 0.5) * 60 + i * 25;
+    const baseDist = 180 + level * 40; // L1: 220, L2: 260, L3: 300
+    const dist = baseDist + Math.random() * 80;
+    const elevation = (Math.random() - 0.5) * 40 + i * 20;
     enemyGeo.position.set(
       Math.cos(angle) * dist,
       elevation,

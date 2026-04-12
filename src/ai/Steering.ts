@@ -10,6 +10,8 @@ import { Ship3D } from '../entities/Ship3D';
 const _toTarget = new THREE.Vector3();
 const _fwdFlat = new THREE.Vector3();
 const _targetFlat = new THREE.Vector3();
+const _awayRight = new THREE.Vector3();
+const _awayPoint = new THREE.Vector3();
 
 export interface SteeringOutput {
   yaw: number;    // -1..1  (positive = turn right)
@@ -88,13 +90,13 @@ export function steerAway(
 
   // Add lateral curve so the break isn't a straight reversal
   if (lateralBias !== 0) {
-    const right = new THREE.Vector3(-_toTarget.z, 0, _toTarget.x);
-    _toTarget.addScaledVector(right, lateralBias).normalize();
+    _awayRight.set(-_toTarget.z, 0, _toTarget.x);
+    _toTarget.addScaledVector(_awayRight, lateralBias).normalize();
   }
 
   // Compute a temporary world-space waypoint in the "away" direction
-  const awayPoint = self.position.clone().addScaledVector(_toTarget, 200);
-  return steerToward(self, awayPoint, sensitivity, minThrust);
+  _awayPoint.copy(self.position).addScaledVector(_toTarget, 200);
+  return steerToward(self, _awayPoint, sensitivity, minThrust);
 }
 
 /**
@@ -113,6 +115,37 @@ export function leadIntercept(
   // Predict target position after time t (clamp to prevent wild overshoot)
   out.copy(targetPos).addScaledVector(targetVel, Math.min(t, 3) * 0.6);
   return out;
+}
+
+// ── Organic feel utilities ──────────────────────────────
+
+/**
+ * Pseudo-chaotic oscillation using product-of-sines.
+ * Two incommensurate frequencies beat against each other,
+ * producing a signal that looks random over short windows
+ * but is fully deterministic. Zero allocation.
+ */
+export function chaos(t: number, seed: number): number {
+  return Math.sin(t * 7.3 + seed) * Math.sin(t * 3.1 + seed * 1.7);
+}
+
+/**
+ * Micro-correction overlay that creates human-like twitchy flight.
+ * Apply after computing steering but before clamping.
+ *
+ * @param intensity  0.0-1.0 — personality-dependent jink strength
+ */
+export function jinkOverlay(
+  timer: number,
+  seed: number,
+  intensity: number,
+): { yaw: number; pitch: number } {
+  const jY = Math.sin(timer * 11.3 + seed) * Math.sin(timer * 4.7 + seed * 2.3);
+  const jP = Math.cos(timer * 9.1 + seed * 1.3) * Math.sin(timer * 5.9 + seed * 0.7);
+  return {
+    yaw: jY * intensity * 0.3,
+    pitch: jP * intensity * 0.2,
+  };
 }
 
 function clamp(v: number, lo = -1, hi = 1): number {

@@ -485,7 +485,7 @@ export function createProdigyMonolith(): THREE.Group {
   const logoTex = new THREE.TextureLoader().load('/portraits/prodigy-logo.png');
   logoTex.colorSpace = THREE.SRGBColorSpace;
 
-  const logoSize = slabH * 0.6;
+  const logoSize = slabH * 1.08;
   const logoGeo = new THREE.PlaneGeometry(logoSize, logoSize);
   const logoMat = new THREE.MeshStandardMaterial({
     color: new THREE.Color(0.18, 0.08, 0.04), // dark shadow — carved recess in the stone

@@ -770,13 +770,19 @@ export function createBlackHole(scene: THREE.Scene): LevelEnvironment {
   group.add(holeMesh);
   disposables.push(holeGeo, holeMat);
 
-  // ── 2. Outer volumetric glow (large warm orange wash) ──
+  // ── 2. Outer volumetric glow (massive light wash radiating outward) ──
+  // Smooth gradient from bright core to dark space over 5x the original range
   const outerGlowTex = makeGlowTexture(512, [
-    { pos: 0, color: 'rgba(255, 160, 40, 0.35)' },
-    { pos: 0.12, color: 'rgba(255, 120, 20, 0.25)' },
-    { pos: 0.3, color: 'rgba(200, 70, 5, 0.12)' },
-    { pos: 0.55, color: 'rgba(120, 30, 0, 0.05)' },
-    { pos: 0.8, color: 'rgba(40, 8, 0, 0.02)' },
+    { pos: 0, color: 'rgba(255, 180, 60, 0.45)' },
+    { pos: 0.03, color: 'rgba(255, 150, 40, 0.38)' },
+    { pos: 0.08, color: 'rgba(255, 120, 25, 0.30)' },
+    { pos: 0.15, color: 'rgba(230, 90, 10, 0.22)' },
+    { pos: 0.25, color: 'rgba(180, 60, 5, 0.14)' },
+    { pos: 0.38, color: 'rgba(130, 40, 2, 0.08)' },
+    { pos: 0.52, color: 'rgba(80, 25, 0, 0.04)' },
+    { pos: 0.68, color: 'rgba(40, 12, 0, 0.018)' },
+    { pos: 0.82, color: 'rgba(20, 5, 0, 0.007)' },
+    { pos: 0.93, color: 'rgba(8, 2, 0, 0.002)' },
     { pos: 1, color: 'rgba(0, 0, 0, 0)' },
   ]);
   const outerGlowMat = new THREE.SpriteMaterial({
@@ -784,7 +790,7 @@ export function createBlackHole(scene: THREE.Scene): LevelEnvironment {
     blending: THREE.AdditiveBlending, depthWrite: false,
   });
   const outerGlow = new THREE.Sprite(outerGlowMat);
-  outerGlow.scale.set(1000, 1000, 1);
+  outerGlow.scale.set(5000, 5000, 1);
   group.add(outerGlow);
   disposables.push(outerGlowTex, outerGlowMat);
 
@@ -802,7 +808,7 @@ export function createBlackHole(scene: THREE.Scene): LevelEnvironment {
     blending: THREE.AdditiveBlending, depthWrite: false,
   });
   const innerGlow = new THREE.Sprite(innerGlowMat);
-  innerGlow.scale.set(500, 500, 1);
+  innerGlow.scale.set(800, 800, 1);
   group.add(innerGlow);
   disposables.push(innerGlowTex, innerGlowMat);
 

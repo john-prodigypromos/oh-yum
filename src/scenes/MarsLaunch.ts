@@ -126,25 +126,29 @@ export function createMarsLaunch(
   const nav = new NavBeacon('ORBIT');
   nav.setTarget(new THREE.Vector3(0, MARS_ATMOSPHERE.maxAltitude, -8000));
 
-  // ── Launch prompt DOM element ──
+  // ── Launch banner — cinematic title card ──
   const promptEl = document.createElement('div');
-  promptEl.textContent = 'HOLD THRUST TO LAUNCH';
   promptEl.style.cssText = `
     position: fixed;
-    bottom: 30%;
+    bottom: 28%;
     left: 50%;
     transform: translateX(-50%);
     font-family: var(--font-display, 'Rajdhani', sans-serif);
-    font-size: 22px;
     font-weight: 700;
     color: #00ffff;
-    letter-spacing: 4px;
     text-align: center;
     pointer-events: none;
     z-index: 20;
-    text-shadow: 0 0 12px rgba(0, 255, 255, 0.6);
-    animation: marsPromptFadeIn 0.8s ease-out forwards;
+    animation: marsPromptFadeIn 1.0s ease-out forwards;
   `;
+  const bannerTitle = document.createElement('div');
+  bannerTitle.textContent = 'LAUNCH FROM SECRET BASE ON MARS';
+  bannerTitle.style.cssText = 'font-size:clamp(28px,5vw,48px);letter-spacing:5px;margin-bottom:8px;text-shadow:0 0 20px rgba(0,255,255,0.5),0 0 40px rgba(0,200,255,0.2);';
+  promptEl.appendChild(bannerTitle);
+  const bannerSub = document.createElement('div');
+  bannerSub.textContent = 'HOLD THRUST TO LAUNCH';
+  bannerSub.style.cssText = 'font-size:clamp(14px,2.5vw,20px);letter-spacing:4px;opacity:0.7;text-shadow:0 0 12px rgba(0,255,255,0.4);';
+  promptEl.appendChild(bannerSub);
 
   // Inject keyframes if not already present
   if (!document.getElementById('mars-launch-styles')) {

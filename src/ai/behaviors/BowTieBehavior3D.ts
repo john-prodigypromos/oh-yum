@@ -1,7 +1,8 @@
 // ── Bow Tie Boss AI (Level 2) ────────────────────────────
-// Ghost: hit-and-run from the fog. Dives close, fires burst,
-// retreats with parting shots. Darting, quick direction changes.
-// Medium jink — unpredictable ambush timing.
+// Fast darting fighter: stays in close combat, makes quick
+// attack dives from different angles, hard bank turns, never
+// retreats. Ghost feel from jink, speed, and unpredictable
+// approach angles — not from hiding at distance.
 
 import * as THREE from 'three';
 import { Ship3D } from '../../entities/Ship3D';
@@ -9,11 +10,11 @@ import type { AIBehavior3D } from '../AIBehavior3D';
 import type { ShipInput } from '../../systems/PhysicsSystem3D';
 import { steerToward, steerAway, leadIntercept, chaos, jinkOverlay } from '../Steering';
 
-type Phase = 'hidden' | 'approach' | 'attack' | 'retreat';
+type Phase = 'circling' | 'dive_attack' | 'bank_away';
 
 export class BowTieBehavior3D implements AIBehavior3D {
   private fireRate: number;
-  private phase: Phase = 'hidden';
+  private phase: Phase = 'circling';
   private phaseTimer = 0;
   private phaseDuration = 0;
   private timer = 0;
@@ -21,14 +22,9 @@ export class BowTieBehavior3D implements AIBehavior3D {
   private seed = 5.43;
   private _snapImpulse = 0;
 
-  // Fog visibility range — enemies beyond this are "hidden"
-  private readonly FOG_RANGE = 180;
-
   // Pre-allocated temp vectors (avoid per-frame GC)
   private _interceptPt = new THREE.Vector3();
-  private _retreatPt = new THREE.Vector3();
   private _toPlayer = new THREE.Vector3();
-  private _approachDir = new THREE.Vector3();
   private _orbitPt = new THREE.Vector3();
   private _right = new THREE.Vector3();
 
@@ -38,8 +34,7 @@ export class BowTieBehavior3D implements AIBehavior3D {
     _chaseRange: number,
   ) {
     this.fireRate = fireRate;
-    this.phaseTimer = 2;
-    this._setPhase('hidden');
+    this._setPhase('circling');
   }
 
   update(self: Ship3D, target: Ship3D, dt: number, now: number): ShipInput & { fire: boolean } {
@@ -55,35 +50,36 @@ export class BowTieBehavior3D implements AIBehavior3D {
     const toPlayer = this._toPlayer.subVectors(target.position, self.position).normalize();
     const facingAlignment = forward.dot(toPlayer);
 
+    // ── Distance leash — always re-engage if too far ──
+    if (distToPlayer > 150 && this.phase !== 'circling') {
+      this._setPhase('circling');
+    }
+
     // ── Phase transitions ──
     switch (this.phase) {
-      case 'hidden':
-        if (this.phaseTimer > this.phaseDuration) {
-          this._setPhase('approach');
-          // Steer toward player from current position — no teleporting
+      case 'circling':
+        // Orbit close, then dive when time is up and roughly facing player
+        if (this.phaseTimer > this.phaseDuration && facingAlignment > 0.2) {
+          this._setPhase('dive_attack');
+        }
+        // Safety: dive anyway after extra time
+        if (this.phaseTimer > this.phaseDuration + 1.5) {
+          this._setPhase('dive_attack');
+        }
+        break;
+
+      case 'dive_attack':
+        // Break off after passing or time limit
+        if (this.phaseTimer > this.phaseDuration || (this.phaseTimer > 0.5 && facingAlignment < -0.3)) {
           this.breakDir *= -1;
+          this._setPhase('bank_away');
         }
         break;
-      case 'approach':
-        if (distToPlayer < 45 || this.phaseTimer > 3.5) {
-          this._setPhase('attack');
-        }
-        break;
-      case 'attack':
+
+      case 'bank_away':
+        // Hard bank, then back to circling
         if (this.phaseTimer > this.phaseDuration) {
-          this._setPhase('retreat');
-          // Set retreat point beyond fog — chaotic angle
-          const retreatAngle = chaos(this.timer, this.seed * 3) * Math.PI + Math.PI;
-          this._retreatPt.set(
-            target.position.x + Math.cos(retreatAngle) * (this.FOG_RANGE + 100),
-            target.position.y + chaos(this.timer, this.seed * 4) * 30,
-            target.position.z + Math.sin(retreatAngle) * (this.FOG_RANGE + 100),
-          );
-        }
-        break;
-      case 'retreat':
-        if (distToPlayer > this.FOG_RANGE + 30 || this.phaseTimer > 3) {
-          this._setPhase('hidden');
+          this._setPhase('circling');
         }
         break;
     }
@@ -91,64 +87,61 @@ export class BowTieBehavior3D implements AIBehavior3D {
     // ── Steering per phase ──
     let yaw = 0;
     let pitch = 0;
-    let thrust = 0.5;
+    let thrust = 0.7;
     let fire = false;
 
     switch (this.phase) {
-      case 'hidden': {
-        // Circle beyond fog range — tighter orbit
-        const angle = this.timer * 0.5 + chaos(this.timer, this.seed) * 0.5;
+      case 'circling': {
+        // Fast tight orbit — different angle each cycle via chaos
+        const orbitAngle = this.timer * 0.9 + chaos(this.timer, this.seed) * 1.0;
+        const orbitRadius = 40 + (chaos(this.timer, this.seed * 1.5) + 1) * 15; // 40-70u
         this._orbitPt.set(
-          target.position.x + Math.cos(angle) * (this.FOG_RANGE + 30),
-          target.position.y + Math.sin(this.timer * 0.3) * 20,
-          target.position.z + Math.sin(angle) * (this.FOG_RANGE + 30),
+          target.position.x + Math.cos(orbitAngle) * orbitRadius,
+          target.position.y + chaos(this.timer, this.seed * 2) * 25,
+          target.position.z + Math.sin(orbitAngle) * orbitRadius,
         );
-        const steer = steerToward(self, this._orbitPt, 1.5, 0.4);
+        const steer = steerToward(self, this._orbitPt, 4.0, 0.7);
         yaw = steer.yaw;
         pitch = steer.pitch;
-        thrust = steer.thrust;
-        break;
-      }
+        // Direction-aware: coast if facing away
+        thrust = facingAlignment > 0 ? 0.9 : 0.3;
 
-      case 'approach': {
-        // Dive toward player at high speed — aggressive intercept
-        leadIntercept(self.position, target.position, target.velocity, 130, this._interceptPt);
-        this._interceptPt.y += 16;
-        const steer = steerToward(self, this._interceptPt, 4.5, 0.8);
-        yaw = steer.yaw;
-        pitch = steer.pitch;
-        thrust = 1.0;
-        break;
-      }
-
-      case 'attack': {
-        // Close-range attack pass — tight pursuit, aggressive firing
-        leadIntercept(self.position, target.position, target.velocity, 100, this._interceptPt);
-        this._right.set(-toPlayer.z, 0, toPlayer.x);
-        this._interceptPt.addScaledVector(this._right, chaos(this.timer, this.seed) * 40);
-
-        const steer = steerToward(self, this._interceptPt, 2.5, 0.6);
-        yaw = steer.yaw;
-        pitch = steer.pitch;
-        thrust = steer.thrust;
-
-        // Aggressive burst fire during attack
-        if (distToPlayer < 120 && facingAlignment > 0.2) {
-          if (now - self.lastFireTime >= this.fireRate * 0.6) fire = true;
+        // Opportunistic fire while circling
+        if (distToPlayer < 100 && facingAlignment > 0.3) {
+          if (now - self.lastFireTime >= this.fireRate * 0.8) fire = true;
         }
         break;
       }
 
-      case 'retreat': {
-        // Flee to retreat point at high speed
-        const steer = steerToward(self, this._retreatPt, 2.5, 0.7);
+      case 'dive_attack': {
+        // Full speed straight at the player — aggressive intercept
+        leadIntercept(self.position, target.position, target.velocity, 120, this._interceptPt);
+        this._right.set(-toPlayer.z, 0, toPlayer.x);
+        this._interceptPt.addScaledVector(this._right, chaos(this.timer, this.seed) * 25);
+
+        const steer = steerToward(self, this._interceptPt, 4.5, 0.8);
         yaw = steer.yaw;
         pitch = steer.pitch;
-        // Delayed afterburner kick
-        thrust = this.phaseTimer < 0.5 ? 0.85 : 1.0;
+        thrust = 1.0; // full afterburner
 
-        // Parting shots during retreat
-        if (distToPlayer < 120 && facingAlignment > 0.25) {
+        // Aggressive fire during dive
+        if (distToPlayer < 130 && facingAlignment > 0.2) {
+          if (now - self.lastFireTime >= this.fireRate * 0.5) fire = true;
+        }
+        break;
+      }
+
+      case 'bank_away': {
+        // Hard bank turn — fast, aggressive, short
+        const steer = steerAway(self, target.position, 5.0, 0.7, this.breakDir * 0.9);
+        yaw = steer.yaw;
+        pitch = steer.pitch;
+        thrust = Math.max(0.7, steer.thrust);
+        pitch += this.breakDir * 0.35;
+        pitch = Math.max(-1, Math.min(1, pitch));
+
+        // Snap shots during bank
+        if (distToPlayer < 90 && facingAlignment > 0.2) {
           if (now - self.lastFireTime >= this.fireRate) fire = true;
         }
         break;
@@ -161,8 +154,8 @@ export class BowTieBehavior3D implements AIBehavior3D {
       this._snapImpulse = 0;
     }
 
-    // ── Jink overlay — darting ghost ──
-    const jink = jinkOverlay(this.timer, this.seed, 0.5);
+    // ── Jink overlay — darting, quick ──
+    const jink = jinkOverlay(this.timer, this.seed, 0.55);
     yaw = Math.max(-1, Math.min(1, yaw + jink.yaw));
     pitch = Math.max(-1, Math.min(1, pitch + jink.pitch));
 
@@ -175,9 +168,10 @@ export class BowTieBehavior3D implements AIBehavior3D {
     this._snapImpulse = 0.4 * this.breakDir;
 
     switch (phase) {
-      case 'hidden': this.phaseDuration = 1.0 + (chaos(this.timer, this.seed) + 1) * 0.7; break; // 1.0-2.4s
-      case 'attack': this.phaseDuration = 1.0 + (chaos(this.timer, this.seed) + 1) * 0.5; break; // 1.0-2.0s
-      default:       this.phaseDuration = 2; break;
+      case 'circling':    this.phaseDuration = 0.8 + (chaos(this.timer, this.seed) + 1) * 0.6; break; // 0.8-2.0s
+      case 'dive_attack': this.phaseDuration = 1.0 + (chaos(this.timer, this.seed) + 1) * 0.5; break; // 1.0-2.0s
+      case 'bank_away':   this.phaseDuration = 0.3 + (chaos(this.timer, this.seed) + 1) * 0.2; break; // 0.3-0.7s
+      default:            this.phaseDuration = 2; break;
     }
   }
 }

@@ -334,7 +334,9 @@ export function updateArena(
   // Draw touch controls (only visible on touch devices)
   touchControls.draw();
 
-  // ── Enemy AI + weapons ──
+  // ── Enemy AI + weapons + hard distance leash ──
+  const LEASH_DIST = 200;   // max allowed distance from player
+  const LEASH_FORCE = 300;  // pull strength when beyond leash
   for (let i = 0; i < enemies.length; i++) {
     const enemy = enemies[i];
     if (!enemy.alive) continue;
@@ -347,6 +349,22 @@ export function updateArena(
     }
     // Apply physics so enemies fly with real velocity, drag, and momentum
     applyShipPhysics(enemy, aiInput, effectiveDt, now);
+
+    // ── Hard physics leash — directly yank enemies back if too far ──
+    // This overrides ALL behavior steering. No enemy can escape.
+    _projTmp.subVectors(player.position, enemy.position);
+    const dist = _projTmp.length();
+    if (dist > LEASH_DIST) {
+      _projTmp.divideScalar(dist); // normalize toward player
+      const overshoot = dist - LEASH_DIST;
+      // Kill outward velocity component
+      const outwardSpeed = -enemy.velocity.dot(_projTmp); // positive = moving away
+      if (outwardSpeed > 0) {
+        enemy.velocity.addScaledVector(_projTmp, outwardSpeed); // zero out the away component
+      }
+      // Pull toward player — stronger the further out
+      enemy.velocity.addScaledVector(_projTmp, Math.min(overshoot, 200) * LEASH_FORCE / 200 * effectiveDt);
+    }
   }
 
   // ── Player physics ──

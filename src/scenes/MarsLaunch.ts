@@ -144,9 +144,13 @@ export function createMarsLaunch(
     animation: marsPromptFadeIn 1.0s ease-out forwards;
   `;
   const bannerTitle = document.createElement('div');
-  bannerTitle.textContent = 'SECRET BASE ON MARS (BUT SHARED PUBLICLY ONLINE)';
-  bannerTitle.style.cssText = 'font-size:clamp(16px,min(4vw,6vh),42px);letter-spacing:3px;margin-bottom:8px;text-shadow:0 0 20px rgba(0,255,255,0.5),0 0 40px rgba(0,200,255,0.2);line-height:1.2;';
+  bannerTitle.textContent = 'SECRET BASE ON MARS';
+  bannerTitle.style.cssText = 'font-size:clamp(16px,min(4vw,6vh),42px);letter-spacing:3px;margin-bottom:4px;text-shadow:0 0 20px rgba(0,255,255,0.5),0 0 40px rgba(0,200,255,0.2);line-height:1.2;';
   promptEl.appendChild(bannerTitle);
+  const bannerSubtitle = document.createElement('div');
+  bannerSubtitle.textContent = '(BUT SHARED PUBLICLY ONLINE)';
+  bannerSubtitle.style.cssText = 'font-size:clamp(11px,min(2.2vw,3.5vh),22px);letter-spacing:3px;margin-bottom:12px;opacity:0.6;text-shadow:0 0 12px rgba(0,255,255,0.4);line-height:1.2;';
+  promptEl.appendChild(bannerSubtitle);
   const bannerSub = document.createElement('div');
   bannerSub.textContent = 'HOLD THRUST TO LAUNCH';
   bannerSub.style.cssText = 'font-size:clamp(14px,2.5vw,20px);letter-spacing:4px;opacity:0.7;text-shadow:0 0 12px rgba(0,255,255,0.4);';

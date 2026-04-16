@@ -62,6 +62,7 @@ export function createMarsLaunch(
   const playerGeo = createPlayerShipGeometry();
   applyMaterials(playerGeo, createPlayerMaterials(charColor));
   playerGeo.position.set(0, 15, -8000); // on the pad, deep inside the canyon
+  playerGeo.rotation.x = -Math.PI / 2; // nose pointing straight UP for launch
   playerGeo.visible = false;
   scene.add(playerGeo);
 
@@ -69,7 +70,7 @@ export function createMarsLaunch(
     group: playerGeo,
     maxHull: diff.playerHull,
     maxShield: diff.playerShield,
-    speedMult: 80.0,  // rocket launch thrust (reduced from 100)
+    speedMult: 20.0,  // rocket launch — enough to reach 20km orbit in ~12s
     rotationMult: 1.0,
     isPlayer: true,
   });
@@ -252,8 +253,8 @@ export function updateMarsLaunch(
   if (state.phase === 'grounded') {
     player.position.set(0, 15, -8000);
     player.velocity.set(0, 0, 0);
-    // Camera stays locked — no drift
-    cockpitCam.update(player, dt, 0);
+    // Camera rigidly locked — zero drift
+    cockpitCam.snapTo(player);
     touchControls.draw();
     hud.updateAltitude(state.altitude);
     state.nav.update(state.camera, player.position);
@@ -330,8 +331,8 @@ export function updateMarsLaunch(
   // ── Touch controls ──
   touchControls.draw();
 
-  // ── Camera ──
-  cockpitCam.update(player, dt, input.yaw);
+  // ── Camera — rigid snap, no lerp float ──
+  cockpitCam.snapTo(player);
 
   // ── HUD ──
   hud.updateAltitude(state.altitude);

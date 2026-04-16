@@ -253,21 +253,33 @@ export function updateMarsLaunch(
   // ── Physics ──
   applyShipPhysics(player, input, dt, now, atmosMods);
 
-  // ── Hard floor — cannot go below surface ──
+  // ── Hard floor — absolutely cannot go below surface ──
   if (player.position.y < 0) {
     player.position.y = 0;
     if (player.velocity.y < 0) player.velocity.y = 0;
+    // Also kill any forward velocity that would push into the ground
+    const fwd = player.getForward();
+    if (fwd.y < -0.3) {
+      player.velocity.multiplyScalar(0.5);
+    }
   }
   // Keep ship on the pad while grounded
-  if (state.phase === 'grounded' && player.position.y < 15) {
-    player.position.y = 15;
+  if (state.phase === 'grounded') {
+    player.position.y = Math.max(player.position.y, 15);
     if (player.velocity.y < 0) player.velocity.y = 0;
   }
 
-  // ── Canyon wall collision — deadly, ship explodes ──
+  // ── Canyon walls — hard clamp every frame, explode on contact ──
   const wallHalfWidth = 35 + state.altitude * 0.1;
-  if (player.position.x < -wallHalfWidth || player.position.x > wallHalfWidth) {
-    player.position.x = Math.max(-wallHalfWidth, Math.min(wallHalfWidth, player.position.x));
+  const wasOutside = player.position.x < -wallHalfWidth || player.position.x > wallHalfWidth;
+
+  // Always clamp position inside walls (prevents any penetration)
+  player.position.x = Math.max(-wallHalfWidth, Math.min(wallHalfWidth, player.position.x));
+
+  // If ship touched a wall, kill lateral velocity and trigger crash
+  if (wasOutside && !state.crashed) {
+    if (player.velocity.x < 0 && player.position.x <= -wallHalfWidth + 1) player.velocity.x = 0;
+    if (player.velocity.x > 0 && player.position.x >= wallHalfWidth - 1) player.velocity.x = 0;
     player.velocity.set(0, 0, 0);
     player.alive = false;
     player.hull = 0;

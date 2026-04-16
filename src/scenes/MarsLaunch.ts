@@ -248,10 +248,22 @@ export function updateMarsLaunch(
   // ── Altitude ──
   state.altitude = player.position.y;
 
+  // ── While grounded: skip ALL physics — ship is locked on the pad ──
+  if (state.phase === 'grounded') {
+    player.position.set(0, 15, -8000);
+    player.velocity.set(0, 0, 0);
+    // Camera stays locked — no drift
+    cockpitCam.update(player, dt, 0);
+    touchControls.draw();
+    hud.updateAltitude(state.altitude);
+    state.nav.update(state.camera, player.position);
+    return;
+  }
+
   // ── Atmosphere modifiers ──
   const atmosMods = getAtmosphereModifiers(MARS_ATMOSPHERE, state.altitude);
 
-  // ── Physics ──
+  // ── Physics (only when climbing/flying) ──
   applyShipPhysics(player, input, dt, now, atmosMods);
 
   // ── Hard floor — absolutely cannot go below surface ──
@@ -264,11 +276,7 @@ export function updateMarsLaunch(
       player.velocity.multiplyScalar(0.5);
     }
   }
-  // Keep ship on the pad while grounded
-  if (state.phase === 'grounded') {
-    player.position.y = Math.max(player.position.y, 15);
-    if (player.velocity.y < 0) player.velocity.y = 0;
-  }
+  // (grounded case handled above with early return)
 
   // ── Canyon walls — hard clamp every frame, explode on contact ──
   const wallHalfWidth = 35 + state.altitude * 0.1;

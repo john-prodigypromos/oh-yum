@@ -184,7 +184,7 @@ function showTitleOverlay(): void {
   const logo = document.createElement('img');
   logo.src = '/portraits/prodigy-logo.png';
   logo.alt = 'Prodigy Promos';
-  logo.style.cssText = 'width:clamp(60px,20vw,200px);height:auto;max-height:clamp(60px,15vh,200px);object-fit:contain;margin-bottom:clamp(8px,2vh,24px);filter:drop-shadow(0 0 30px rgba(0,200,255,0.2));animation:fadeIn 0.4s ease-out both;';
+  logo.style.cssText = 'width:clamp(40px,15vw,200px);height:auto;max-height:clamp(40px,10vh,200px);object-fit:contain;margin-bottom:clamp(4px,1vh,24px);filter:drop-shadow(0 0 30px rgba(0,200,255,0.2));animation:fadeIn 0.4s ease-out both;';
   panel.appendChild(logo);
 
   const title = document.createElement('div');
@@ -193,7 +193,7 @@ function showTitleOverlay(): void {
   panel.appendChild(title);
 
   const spacer = document.createElement('div');
-  spacer.style.cssText = 'margin-bottom:clamp(4px,2vh,30px);';
+  spacer.style.cssText = 'margin-bottom:clamp(2px,1vh,20px);';
   panel.appendChild(spacer);
 
   const selectLabel = document.createElement('div');

@@ -109,7 +109,7 @@ export class BoloTieBehavior3D implements AIBehavior3D {
       case 'evade': {
         yaw = this.evadeYaw;
         pitch = this.evadePitch;
-        thrust = this.phaseTimer < 0.8 ? 1.0 : 0.6;
+        thrust = 1.0;
         smooth = false;
         break;
       }

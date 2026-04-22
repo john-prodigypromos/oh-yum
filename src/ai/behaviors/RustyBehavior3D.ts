@@ -114,7 +114,7 @@ export class RustyBehavior3D implements AIBehavior3D {
       case 'evade': {
         yaw = this.evadeYaw;
         pitch = this.evadePitch;
-        thrust = this.phaseTimer < 0.8 ? 1.0 : 0.6;
+        thrust = 1.0; // full thrust entire evade — fly the arc, don't float
         smooth = false; // evade uses raw committed values — no smoothing
         if (dist < engageRange && facing > this.cfg.fireCone + 0.1) {
           if (now - self.lastFireTime >= this.fireRate * 1.5) fire = true;

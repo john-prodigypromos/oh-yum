@@ -99,7 +99,7 @@ export class BowTieBehavior3D implements AIBehavior3D {
       case 'evade': {
         yaw = this.evadeYaw;
         pitch = this.evadePitch;
-        thrust = this.phaseTimer < 1.0 ? 1.0 : 0.5;
+        thrust = 1.0;
         smooth = false;
         break;
       }

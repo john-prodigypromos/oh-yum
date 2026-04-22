@@ -19,6 +19,8 @@ export class BowTieBehavior3D implements AIBehavior3D {
   private seed = 5.43;
   private evadeYaw = 0;
   private evadePitch = 0;
+  private evadeYaw2 = 0;
+  private evadePitch2 = 0;
   private prevYaw = 0;
   private prevPitch = 0;
 
@@ -97,8 +99,9 @@ export class BowTieBehavior3D implements AIBehavior3D {
         break;
       }
       case 'evade': {
-        yaw = this.evadeYaw;
-        pitch = this.evadePitch;
+        const ep = this.phaseTimer / Math.max(0.01, this.phaseDuration);
+        yaw = ep < 0.4 ? this.evadeYaw : this.evadeYaw2;
+        pitch = ep < 0.4 ? this.evadePitch : this.evadePitch2;
         thrust = 1.0;
         smooth = false;
         break;
@@ -142,6 +145,18 @@ export class BowTieBehavior3D implements AIBehavior3D {
           case 7: this.evadeYaw = intensity * 0.5;  this.evadePitch = -intensity; break;
           case 8: this.evadeYaw = -intensity * 0.5; this.evadePitch = intensity; break;
           case 9: this.evadeYaw = intensity * 0.5;  this.evadePitch = intensity; break;
+        }
+        const d2s = chaos(this.timer * 7, this.seed + 1);
+        const d2 = Math.floor((d2s + 1) * 4) % 8;
+        switch (d2) {
+          case 0: this.evadeYaw2 = -intensity; this.evadePitch2 = 0; break;
+          case 1: this.evadeYaw2 = intensity;  this.evadePitch2 = 0; break;
+          case 2: this.evadeYaw2 = 0;          this.evadePitch2 = -intensity; break;
+          case 3: this.evadeYaw2 = 0;          this.evadePitch2 = intensity; break;
+          case 4: this.evadeYaw2 = -intensity * 0.5; this.evadePitch2 = -intensity; break;
+          case 5: this.evadeYaw2 = intensity * 0.5;  this.evadePitch2 = -intensity; break;
+          case 6: this.evadeYaw2 = -intensity * 0.5; this.evadePitch2 = intensity; break;
+          case 7: this.evadeYaw2 = intensity * 0.5;  this.evadePitch2 = intensity; break;
         }
         this.prevYaw = this.evadeYaw;
         this.prevPitch = this.evadePitch;

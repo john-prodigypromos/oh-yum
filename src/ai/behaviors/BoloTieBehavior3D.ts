@@ -140,17 +140,19 @@ export class BoloTieBehavior3D implements AIBehavior3D {
       case 'evade': {
         this.phaseDuration = 2.0 + r * 1.5;
         const dirSeed = chaos(this.timer * 3, this.seed);
-        const dir = Math.floor((dirSeed + 1) * 4) % 8;
+        const dir = Math.floor((dirSeed + 1) * 5) % 10;
         const intensity = 0.6 + a * 0.4;
         switch (dir) {
           case 0: this.evadeYaw = -intensity; this.evadePitch = 0; break;
           case 1: this.evadeYaw = intensity;  this.evadePitch = 0; break;
           case 2: this.evadeYaw = 0;          this.evadePitch = -intensity; break;
-          case 3: this.evadeYaw = 0;          this.evadePitch = intensity; break;
-          case 4: this.evadeYaw = -intensity; this.evadePitch = -intensity * 0.7; break;
-          case 5: this.evadeYaw = intensity;  this.evadePitch = -intensity * 0.7; break;
-          case 6: this.evadeYaw = -intensity; this.evadePitch = intensity * 0.7; break;
-          case 7: this.evadeYaw = intensity;  this.evadePitch = intensity * 0.7; break;
+          case 3: this.evadeYaw = 0;          this.evadePitch = -intensity; break;
+          case 4: this.evadeYaw = 0;          this.evadePitch = intensity; break;
+          case 5: this.evadeYaw = 0;          this.evadePitch = intensity; break;
+          case 6: this.evadeYaw = -intensity * 0.5; this.evadePitch = -intensity; break;
+          case 7: this.evadeYaw = intensity * 0.5;  this.evadePitch = -intensity; break;
+          case 8: this.evadeYaw = -intensity * 0.5; this.evadePitch = intensity; break;
+          case 9: this.evadeYaw = intensity * 0.5;  this.evadePitch = intensity; break;
         }
         this.prevYaw = this.evadeYaw;
         this.prevPitch = this.evadePitch;

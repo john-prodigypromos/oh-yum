@@ -197,9 +197,10 @@ export class TouchControls3D {
   getInput(): TouchInput3D {
     if (!this.enabled) return { yaw: 0, pitch: 0, thrust: 0, fire: false };
 
+    const damp = 0.6; // reduce sensitivity for smoother mobile controls
     return {
-      yaw: Math.abs(this.joystickDelta.x) > 0.15 ? this.joystickDelta.x : 0,
-      pitch: Math.abs(this.joystickDelta.y) > 0.15 ? this.joystickDelta.y : 0,
+      yaw: Math.abs(this.joystickDelta.x) > 0.15 ? this.joystickDelta.x * damp : 0,
+      pitch: Math.abs(this.joystickDelta.y) > 0.15 ? this.joystickDelta.y * damp : 0,
       thrust: (this.thrustPressed ? 1 : 0) + (this.reversePressed ? -1 : 0),
       fire: this.firePressed,
     };

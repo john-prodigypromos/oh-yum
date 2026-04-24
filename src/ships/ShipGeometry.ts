@@ -932,7 +932,6 @@ export function createEnemyShipGeometry(): THREE.Group {
     }
   }
   // Engine accent rings now inside engGroup above
-  }
 
   // Ventral accent lines — downward-facing plane, depthTest:false
   const ventralMat = new THREE.MeshBasicMaterial({

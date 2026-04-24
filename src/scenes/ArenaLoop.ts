@@ -433,44 +433,44 @@ export function updateArena(
       // Sound + camera shake + intense visual feedback on player hit
       if (evt.target === player) {
         const isShield = evt.shieldHit;
-        cockpitCam.shake(isShield ? 5.0 : 10.0);
+        cockpitCam.shake(isShield ? 2.5 : 5.0);
         if (isShield) state.sound.shieldHit();
         else state.sound.hullHit();
 
-        // Full-screen damage flash — pooled overlay (no DOM creation)
+        // Full-screen damage flash — pooled overlay (reduced intensity)
         const flash = getDamageOverlay();
         const color = isShield
-          ? 'rgba(0, 150, 255, 0.6)'
-          : 'rgba(255, 160, 20, 0.75)';
-        flash.style.cssText = `position:fixed;top:0;left:0;width:100%;height:100%;background:${color};z-index:40;pointer-events:none;display:block;transition:opacity 1.0s ease-out;`;
+          ? 'rgba(0, 150, 255, 0.3)'
+          : 'rgba(255, 160, 20, 0.35)';
+        flash.style.cssText = `position:fixed;top:0;left:0;width:100%;height:100%;background:${color};z-index:40;pointer-events:none;display:block;transition:opacity 0.7s ease-out;`;
         requestAnimationFrame(() => { flash.style.opacity = '0'; });
-        releaseDamageOverlay(flash, 1100);
+        releaseDamageOverlay(flash, 800);
 
-        // Vignette or shimmer — single pooled overlay
+        // Vignette or shimmer — single pooled overlay (reduced intensity)
         if (!isShield) {
           const vignette = getDamageOverlay();
-          vignette.style.cssText = `position:fixed;top:0;left:0;width:100%;height:100%;z-index:39;pointer-events:none;display:block;background:radial-gradient(ellipse at center, transparent 20%, rgba(255,140,0,0.55) 70%, rgba(200,60,0,0.7) 100%);transition:opacity 1.8s ease-out;`;
+          vignette.style.cssText = `position:fixed;top:0;left:0;width:100%;height:100%;z-index:39;pointer-events:none;display:block;background:radial-gradient(ellipse at center, transparent 30%, rgba(255,140,0,0.25) 70%, rgba(200,60,0,0.35) 100%);transition:opacity 1.2s ease-out;`;
           requestAnimationFrame(() => { vignette.style.opacity = '0'; });
-          releaseDamageOverlay(vignette, 2000);
+          releaseDamageOverlay(vignette, 1400);
         } else {
           const shimmer = getDamageOverlay();
-          shimmer.style.cssText = `position:fixed;top:0;left:0;width:100%;height:100%;z-index:39;pointer-events:none;display:block;border:12px solid rgba(0,180,255,0.8);box-shadow:inset 0 0 120px rgba(0,150,255,0.4), inset 0 0 200px rgba(0,100,255,0.2);transition:opacity 0.6s ease-out;`;
+          shimmer.style.cssText = `position:fixed;top:0;left:0;width:100%;height:100%;z-index:39;pointer-events:none;display:block;border:6px solid rgba(0,180,255,0.4);box-shadow:inset 0 0 60px rgba(0,150,255,0.2), inset 0 0 100px rgba(0,100,255,0.1);transition:opacity 0.6s ease-out;`;
           requestAnimationFrame(() => { shimmer.style.opacity = '0'; });
           releaseDamageOverlay(shimmer, 700);
         }
 
-        // Single directional hit streak — pooled
+        // Single directional hit streak — pooled (reduced opacity)
         const streak = getDamageOverlay();
         const sAngle = Math.random() * 360;
-        const sColor = isShield ? 'rgba(0,200,255,0.8)' : 'rgba(255,80,0,0.9)';
-        streak.style.cssText = `position:fixed;top:50%;left:50%;width:200vw;height:3px;display:block;transform:translate(-50%,-50%) rotate(${sAngle}deg);background:linear-gradient(90deg, transparent 20%, ${sColor} 50%, transparent 80%);z-index:41;pointer-events:none;transition:opacity 0.5s ease-out;`;
+        const sColor = isShield ? 'rgba(0,200,255,0.4)' : 'rgba(255,80,0,0.45)';
+        streak.style.cssText = `position:fixed;top:50%;left:50%;width:200vw;height:2px;display:block;transform:translate(-50%,-50%) rotate(${sAngle}deg);background:linear-gradient(90deg, transparent 20%, ${sColor} 50%, transparent 80%);z-index:41;pointer-events:none;transition:opacity 0.4s ease-out;`;
         requestAnimationFrame(() => { streak.style.opacity = '0'; });
-        releaseDamageOverlay(streak, 600);
+        releaseDamageOverlay(streak, 500);
 
-        // Critical damage warning — pooled
+        // Critical damage warning — pooled (reduced)
         if (player.damagePct > 0.5) {
           const warning = getDamageOverlay();
-          warning.style.cssText = `position:fixed;top:0;left:0;width:100%;height:100%;z-index:38;pointer-events:none;display:block;background:radial-gradient(ellipse at center, transparent 20%, rgba(200,0,0,0.25) 100%);animation:critPulse 0.5s ease-in-out;`;
+          warning.style.cssText = `position:fixed;top:0;left:0;width:100%;height:100%;z-index:38;pointer-events:none;display:block;background:radial-gradient(ellipse at center, transparent 30%, rgba(200,0,0,0.12) 100%);animation:critPulse 0.5s ease-in-out;`;
           releaseDamageOverlay(warning, 500);
 
           if (!document.getElementById('crit-pulse-css')) {

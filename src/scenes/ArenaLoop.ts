@@ -484,23 +484,26 @@ export function updateArena(
         }
         state.sound.explosion();
 
-        // ── PLAYER DEATH — single big explosion + flash ──
+        // ── PLAYER DEATH — massive in-your-face explosion ──
         if (evt.target.isPlayer) {
           state.gameOver = true;
           state.gameOverTime = now;
           const overlay = document.getElementById('ui-overlay')!;
-          cockpitCam.shake(5.0);
+          cockpitCam.shake(7.0);
+          setTimeout(() => state.sound.explosion(), 60);
 
           const whiteFlash = document.createElement('div');
           whiteFlash.className = 'death-fx';
-          whiteFlash.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:white;z-index:50;pointer-events:none;opacity:0.9;transition:opacity 1.5s ease-out;';
+          whiteFlash.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:white;z-index:50;pointer-events:none;opacity:1.0;transition:opacity 2.0s ease-out;';
           overlay.appendChild(whiteFlash);
           requestAnimationFrame(() => { whiteFlash.style.opacity = '0'; });
-          setTimeout(() => whiteFlash.remove(), 1600);
+          setTimeout(() => whiteFlash.remove(), 2200);
 
           const cx = window.innerWidth / 2;
           const cy = window.innerHeight / 2;
-          explosions.spawnAt(cx, cy, 500, 'boom1', 3.0);
+          explosions.spawnAt(cx, cy, 700, 'boom1', 5.0);
+          explosions.spawnAt(cx - 120, cy - 80, 500, 'boom1', 3.5);
+          explosions.spawnAt(cx + 120, cy + 60, 500, 'boom1', 3.5);
         }
       }
     } catch (e) {
@@ -529,8 +532,14 @@ export function updateArena(
         player.applyDamage(15, now); // extra charge damage
       }
       resolveShipCollision(player, enemy, SHIP.HITBOX_RADIUS, now);
-      cockpitCam.shake(isCharging ? 2.0 : 0.5);
+      cockpitCam.shake(isCharging ? 4.0 : 2.5);
       state.sound.shipCollision();
+      state.sound.explosion();
+      // In-your-face collision explosion
+      const ccx = window.innerWidth / 2;
+      const ccy = window.innerHeight / 2;
+      explosions.spawnAt(ccx, ccy, 600, 'boom1', 4.0);
+      explosions.spawnAt(ccx + (Math.random() - 0.5) * 200, ccy + (Math.random() - 0.5) * 150, 400, 'boom1', 3.0);
     }
   }
 
@@ -541,21 +550,32 @@ export function updateArena(
 
   // ── Collision death — player killed by environment (asteroid/planet/black hole) ──
   if (!player.alive && !state.gameOver) {
+    // Triple-layered explosion sound for massive impact
     state.sound.explosion();
-    cockpitCam.shake(5.0);
+    setTimeout(() => state.sound.explosion(), 80);
+    setTimeout(() => state.sound.explosion(), 200);
+    cockpitCam.shake(8.0);
 
     const overlay = document.getElementById('ui-overlay');
     if (overlay) {
       const flash = document.createElement('div');
       flash.className = 'death-fx';
-      flash.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:white;z-index:50;pointer-events:none;opacity:0.9;transition:opacity 1.5s ease-out;';
+      flash.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:white;z-index:50;pointer-events:none;opacity:1.0;transition:opacity 2.0s ease-out;';
       overlay.appendChild(flash);
       requestAnimationFrame(() => { flash.style.opacity = '0'; });
-      setTimeout(() => flash.remove(), 1600);
+      setTimeout(() => flash.remove(), 2200);
 
+      // Massive multi-burst explosion filling the screen
       const cx = window.innerWidth / 2;
       const cy = window.innerHeight / 2;
-      explosions.spawnAt(cx, cy, 500, 'boom1', 3.0);
+      explosions.spawnAt(cx, cy, 800, 'boom1', 6.0);
+      explosions.spawnAt(cx - 150, cy - 100, 600, 'boom1', 4.5);
+      explosions.spawnAt(cx + 150, cy + 80, 600, 'boom1', 4.5);
+      explosions.spawnAt(cx, cy - 150, 500, 'boom1', 3.5);
+      setTimeout(() => {
+        explosions.spawnAt(cx + 100, cy, 700, 'boom1', 5.0);
+        explosions.spawnAt(cx - 100, cy + 100, 500, 'boom1', 4.0);
+      }, 100);
     }
 
     state.gameOver = true;

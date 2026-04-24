@@ -345,8 +345,8 @@ export function updateArena(
       const locked = enemies[state.lockedTargetIndex];
       if (locked && locked.alive) {
         _projTmp.copy(locked.position).project(cam);
-        // Only auto-aim if target is within center 33% of screen
-        if (Math.abs(_projTmp.x) < 0.33 && Math.abs(_projTmp.y) < 0.33 && _projTmp.z < 1) {
+        // Only auto-aim if target is within center 45% of screen
+        if (Math.abs(_projTmp.x) < 0.45 && Math.abs(_projTmp.y) < 0.45 && _projTmp.z < 1) {
           fireTarget = locked;
         }
       }
@@ -360,7 +360,7 @@ export function updateArena(
   touchControls.draw();
 
   // ── Enemy AI + weapons + hard distance leash ──
-  const LEASH_DIST = 200;   // max allowed distance from player
+  const LEASH_DIST = 350;   // max allowed distance from player
   const LEASH_FORCE = 300;  // pull strength when beyond leash
   const GRACE_PERIOD = 3500; // ms of peace before enemies engage
   const graceActive = (now - state.roundStartTime) < GRACE_PERIOD;

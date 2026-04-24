@@ -34,7 +34,7 @@ export const DIFFICULTY: Record<DifficultyLevel, DifficultyConfig> = {
     aiSensitivity: 1.5,
     aiAggression: 0.15,
     aiJinkIntensity: 0.1,
-    aiLeashRange: 200,
+    aiLeashRange: 300,
     aiFireCone: 0.45,
   },
   intermediate: {
@@ -50,7 +50,7 @@ export const DIFFICULTY: Record<DifficultyLevel, DifficultyConfig> = {
     aiSensitivity: 3.5,
     aiAggression: 0.45,
     aiJinkIntensity: 0.4,
-    aiLeashRange: 140,
+    aiLeashRange: 220,
     aiFireCone: 0.25,
   },
   expert: {
@@ -66,7 +66,7 @@ export const DIFFICULTY: Record<DifficultyLevel, DifficultyConfig> = {
     aiSensitivity: 5.0,
     aiAggression: 0.8,
     aiJinkIntensity: 0.8,
-    aiLeashRange: 100,
+    aiLeashRange: 160,
     aiFireCone: 0.1,
   },
 };

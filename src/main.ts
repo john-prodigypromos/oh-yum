@@ -188,7 +188,7 @@ function showTitleOverlay(): void {
   panel.appendChild(logo);
 
   const title = document.createElement('div');
-  title.textContent = 'OH-YUM BLASTER';
+  title.textContent = 'PRODIGY BLASTER';
   title.className = 'title-hero';
   panel.appendChild(title);
 
@@ -386,12 +386,12 @@ function showLevelIntroOverlay(): void {
     document.head.appendChild(style);
   }
 
-  // Longer delay to let players read the villain intro — 4.5s
+  // Brief pause to register level + villain — 2.5s
   setTimeout(() => {
     if (sceneManager.current === 'levelIntro') {
       sceneManager.transition('arena');
     }
-  }, 4500);
+  }, 2500);
 }
 
 function togglePause(): void {

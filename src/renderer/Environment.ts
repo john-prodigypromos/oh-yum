@@ -627,7 +627,7 @@ export function createMoon(scene: THREE.Scene): THREE.Group {
   moonFallback.wrapS = THREE.RepeatWrapping;
   moonFallback.anisotropy = 4;
 
-  const moonGeo = new THREE.SphereGeometry(60, 64, 48);
+  const moonGeo = new THREE.SphereGeometry(22, 64, 48);
   const moonMat = new THREE.MeshStandardMaterial({
     map: moonFallback,
     metalness: 0.1,
@@ -644,8 +644,8 @@ export function createMoon(scene: THREE.Scene): THREE.Group {
   });
   group.add(new THREE.Mesh(moonGeo, moonMat));
 
-  // Position near the gas giant but offset
-  group.position.set(-600, 200, -900);
+  // Position far from the planet — moons orbit at great distance
+  group.position.set(-1800, 500, -2800);
 
   scene.add(group);
   return group;
@@ -678,7 +678,7 @@ export function createSpaceEnvironment(
   const planet = createPlanet(scene, planetIndex);
   const planetRadius = PLANET_PROFILES[planetIndex % PLANET_PROFILES.length].radius;
   const moon = createMoon(scene);
-  const moonRadius = 60;
+  const moonRadius = 22;
 
   // Generate environment map for PBR reflections
   createEnvironmentMap(renderer, scene, camera);

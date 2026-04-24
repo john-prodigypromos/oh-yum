@@ -574,8 +574,8 @@ export class HUD3D {
 
         if (slot.portrait) {
           slot.portrait.style.display = 'block';
-          slot.portrait.style.width = '42px';
-          slot.portrait.style.height = '42px';
+          slot.portrait.style.width = '60px';
+          slot.portrait.style.height = '60px';
           slot.portrait.style.border = '2px solid #ff4444';
           slot.portrait.style.filter = 'drop-shadow(0 0 3px rgba(255,0,0,0.4))';
         }
@@ -585,7 +585,7 @@ export class HUD3D {
 
         const dist = Math.round(enemy.position.distanceTo(player.position));
         slot.label.style.display = 'block';
-        slot.label.style.fontSize = '10px';
+        slot.label.style.fontSize = '13px';
         slot.label.style.fontWeight = 'normal';
         slot.label.style.color = '#ff4444';
         slot.label.style.textShadow = 'none';
@@ -595,7 +595,7 @@ export class HUD3D {
 
       // On-screen
       const isLocked = i === lockedTargetIndex;
-      const inLockZone = isLocked && Math.abs(pos.x) < 0.33 && Math.abs(pos.y) < 0.33;
+      const inLockZone = isLocked && Math.abs(pos.x) < 0.45 && Math.abs(pos.y) < 0.45;
       const borderColor = inLockZone ? '#00ff66' : '#ff4444';
       const glowColor = inLockZone ? 'rgba(0,255,102,0.6)' : 'rgba(255,0,0,0.5)';
       const textColor = inLockZone ? '#00ff66' : '#ff4444';
@@ -609,11 +609,11 @@ export class HUD3D {
       slot.arrow.style.display = 'none';
 
       if (showDetails) {
-        const portraitSize = Math.round(54 * distScale);
-        const barWidth = Math.round(54 * distScale);
-        const barH = Math.max(3, Math.round(6 * distScale));
-        const fontSize = Math.max(7, Math.round(10 * distScale));
-        const dropShadowPx = Math.round(6 * distScale);
+        const portraitSize = Math.round(85 * distScale);
+        const barWidth = Math.round(85 * distScale);
+        const barH = Math.max(4, Math.round(8 * distScale));
+        const fontSize = Math.max(9, Math.round(14 * distScale));
+        const dropShadowPx = Math.round(8 * distScale);
 
         if (slot.portrait) {
           slot.portrait.style.display = 'block';
@@ -674,14 +674,14 @@ export class HUD3D {
     const sy = (-pos.y * 0.5 + 0.5) * h - 70;
     const behind = pos.z > 1;
 
-    const inLockZone = !behind && Math.abs(pos.x) < 0.33 && Math.abs(pos.y) < 0.33;
+    const inLockZone = !behind && Math.abs(pos.x) < 0.45 && Math.abs(pos.y) < 0.45;
     const onScreen = !behind && sx > 30 && sx < w - 30 && sy > 30 && sy < h - 30;
 
     if (inLockZone && onScreen) {
       const dist = enemy.position.distanceTo(player.position);
       const distScale = Math.max(0.3, Math.min(1.0, 60 / Math.max(dist, 1)));
-      const portraitSize = Math.round(54 * distScale);
-      const boxSize = portraitSize + Math.round(20 * distScale);
+      const portraitSize = Math.round(85 * distScale);
+      const boxSize = portraitSize + Math.round(24 * distScale);
 
       // Position and size
       this.lockOverlay.style.left = sx + 'px';
@@ -690,10 +690,10 @@ export class HUD3D {
       this.lockRing.style.height = boxSize + 'px';
       this.lockPortrait.style.width = portraitSize + 'px';
       this.lockPortrait.style.height = portraitSize + 'px';
-      this.lockText.style.fontSize = Math.max(8, Math.round(10 * distScale)) + 'px';
-      this.lockBarBg.style.width = Math.round(54 * distScale) + 'px';
+      this.lockText.style.fontSize = Math.max(9, Math.round(14 * distScale)) + 'px';
+      this.lockBarBg.style.width = Math.round(85 * distScale) + 'px';
       this.lockBarBg.style.height = Math.max(3, Math.round(6 * distScale)) + 'px';
-      this.lockInfo.style.fontSize = Math.max(7, Math.round(10 * distScale)) + 'px';
+      this.lockInfo.style.fontSize = Math.max(9, Math.round(14 * distScale)) + 'px';
 
       // Update portrait src if enemy changed
       const portraitFile = ENEMY_PORTRAITS[lockedTargetIndex];

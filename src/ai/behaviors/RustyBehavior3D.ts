@@ -11,7 +11,7 @@ import { steerToward, steerAway, leadIntercept, chaos } from '../Steering';
 
 let enemyIndex = 0;
 
-type Phase = 'chase' | 'engage' | 'overshoot' | 'evade' | 'flank' | 'tail';
+type Phase = 'chase' | 'evade' | 'flank' | 'tail';
 type Maneuver = 'break_turn' | 'dive_pull' | 'climb_roll' | 'split_s' | 'scissors' | 'throttle_cut';
 
 export class RustyBehavior3D implements AIBehavior3D {
@@ -76,21 +76,10 @@ export class RustyBehavior3D implements AIBehavior3D {
           if (enemyAhead < -0.3) {
             // Already behind the player — go for the kill
             this._setPhase('tail');
-          } else if (this.cfg.aggression > 0.3 && dist < engageRange * 0.8) {
-            // Close enough to flank — circle around
+          } else {
+            // Close enough — flank to get behind
             this._setPhase('flank');
-          } else if (facing > 0.35) {
-            // Head-on — brief engage then reposition
-            this._setPhase('engage');
           }
-        }
-        break;
-
-      case 'engage':
-        if (facing < -0.3 && dist < 80) this._setPhase('overshoot');
-        else if (this.phaseTimer > this.phaseDuration) {
-          // After a brief head-on pass, try to get behind
-          this._setPhase('flank');
         }
         break;
 
@@ -99,8 +88,8 @@ export class RustyBehavior3D implements AIBehavior3D {
           // Got behind the player — attack!
           this._setPhase('tail');
         } else if (this.phaseTimer > this.phaseDuration) {
-          // Flanking took too long, chase and retry
-          this._setPhase('chase');
+          // Flanking took too long, evade and retry
+          this._setPhase('evade');
         }
         break;
 
@@ -112,11 +101,6 @@ export class RustyBehavior3D implements AIBehavior3D {
           // Break off before becoming predictable
           this._setPhase('evade');
         }
-        break;
-
-      case 'overshoot':
-        // Use overshoot momentum to circle behind
-        if (this.phaseTimer > this.phaseDuration) this._setPhase('flank');
         break;
 
       case 'evade':
@@ -151,19 +135,6 @@ export class RustyBehavior3D implements AIBehavior3D {
         break;
       }
 
-      case 'engage': {
-        // Brief head-on pass — fire and break
-        leadIntercept(self.position, target.position, target.velocity, 120, this._interceptPt);
-        const steer = steerToward(self, this._interceptPt, sensitivity * 1.4, 0.6);
-        yaw = steer.yaw;
-        pitch = steer.pitch;
-        thrust = 1.0;
-        if (facing > this.cfg.fireCone) {
-          if (now - self.lastFireTime >= this.fireRate * 0.5) fire = true;
-        }
-        break;
-      }
-
       case 'flank': {
         // Circle around to get behind the player
         // Target: a point behind and to the side of the player
@@ -189,7 +160,7 @@ export class RustyBehavior3D implements AIBehavior3D {
       case 'tail': {
         // Stay on the player's six — follow behind and fire
         // Target: a point directly behind the player at combat distance
-        const followDist = 40 + (this.idx % 3) * 10; // 40-60 units behind
+        const followDist = 70 + (this.idx % 3) * 15; // 70-100 units behind
         this._sixPos.copy(target.position).addScaledVector(playerFwd, -followDist);
         // Small lateral jink so we're harder to predict
         const jink = chaos(this.timer, this.seed) * 12;
@@ -203,21 +174,12 @@ export class RustyBehavior3D implements AIBehavior3D {
         pitch = steer.pitch;
 
         // Throttle management — close gap or maintain distance
-        thrust = dist > 70 ? 1.0 : dist < 25 ? 0.2 : 0.6;
+        thrust = dist > 100 ? 1.0 : dist < 50 ? 0.15 : 0.5;
 
         // Aggressive firing when on the six — wider cone, faster rate
         if (facing > this.cfg.fireCone * 0.7) {
           if (now - self.lastFireTime >= this.fireRate * 0.4) fire = true;
         }
-        break;
-      }
-
-      case 'overshoot': {
-        // High-speed flyby — pull up and bank to start flanking
-        yaw = this.maneuverDir * 0.4;
-        pitch = -0.7; // nose up
-        thrust = 1.0;
-        smooth = false;
         break;
       }
 
@@ -272,7 +234,7 @@ export class RustyBehavior3D implements AIBehavior3D {
             break;
 
           case 'scissors':
-            const scissorPeriod = 0.7;
+            const scissorPeriod = 1.6;
             const scissorPhase = Math.floor(t / scissorPeriod) % 2;
             yaw = scissorPhase === 0 ? d * I : -d * I;
             pitch = (scissorPhase === 0 ? -0.3 : 0.3) * I;
@@ -321,12 +283,10 @@ export class RustyBehavior3D implements AIBehavior3D {
 
     switch (phase) {
       case 'chase':     this.phaseDuration = 4; break;
-      case 'engage':    this.phaseDuration = 1.2 + r * 1.5; break; // shorter — brief head-on pass
       case 'flank':     this.phaseDuration = 3 + r * 2; break;     // 3-5s to reposition
       case 'tail':      this.phaseDuration = 3 + r * 3; break;     // 3-6s on the six
-      case 'overshoot': this.phaseDuration = 0.6 + r * 0.4; break; // quick transition to flank
       case 'evade': {
-        this.phaseDuration = 2.0 + r * 1.5; // 2-3.5s
+        this.phaseDuration = 4.5 + r * 3.0; // 4.5-7.5s
         this.maneuverDir *= -1;
 
         // Pick maneuver — weighted toward repositioning moves

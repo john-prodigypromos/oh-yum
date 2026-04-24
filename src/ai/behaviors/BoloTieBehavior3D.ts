@@ -7,7 +7,7 @@ import type { AIBehavior3D, AIConfig } from '../AIBehavior3D';
 import type { ShipInput } from '../../systems/PhysicsSystem3D';
 import { steerToward, steerAway, leadIntercept, chaos } from '../Steering';
 
-type Phase = 'chase' | 'engage' | 'overshoot' | 'evade';
+type Phase = 'chase' | 'evade';
 type Maneuver = 'break_turn' | 'dive_pull' | 'climb_roll' | 'split_s' | 'scissors' | 'throttle_cut';
 
 export class BoloTieBehavior3D implements AIBehavior3D {
@@ -55,15 +55,7 @@ export class BoloTieBehavior3D implements AIBehavior3D {
 
     switch (this.phase) {
       case 'chase':
-        if (dist < engageRange && facing > 0.35) this._setPhase('engage');
-        break;
-      case 'engage':
-        if (facing < -0.3 && dist < 80) this._setPhase('overshoot');
-        else if (this.phaseTimer > this.phaseDuration || dist > leashRange * 0.7) this._setPhase('evade');
-        else if (facing < -0.15) this._setPhase('evade');
-        break;
-      case 'overshoot':
-        if (this.phaseTimer > this.phaseDuration) this._setPhase('chase');
+        if (dist < engageRange && facing > 0.35) this._setPhase('evade');
         break;
       case 'evade':
         if (this.phaseTimer > this.phaseDuration) this._setPhase('chase');
@@ -82,27 +74,6 @@ export class BoloTieBehavior3D implements AIBehavior3D {
         if (dist < engageRange * 1.3 && facing > this.cfg.fireCone) {
           if (now - self.lastFireTime >= this.fireRate * 0.8) fire = true;
         }
-        break;
-      }
-      case 'engage': {
-        this.isCharging = true;
-        leadIntercept(self.position, target.position, target.velocity, 110, this._interceptPt);
-        const steer = steerToward(self, this._interceptPt, sensitivity * 1.4, 0.6);
-        yaw = steer.yaw; pitch = steer.pitch;
-        thrust = 1.0;
-        const chargeFwd = self.getForward();
-        self.velocity.addScaledVector(chargeFwd, 80 * dt);
-        const spd = self.velocity.length();
-        if (spd > 150 * self.speedMult) self.velocity.setLength(150 * self.speedMult);
-        if (facing > this.cfg.fireCone) {
-          if (now - self.lastFireTime >= this.fireRate * 0.4) fire = true;
-        }
-        break;
-      }
-      case 'overshoot': {
-        this.isCharging = false;
-        yaw = 0; pitch = -0.7; thrust = 1.0;
-        smooth = false;
         break;
       }
       case 'evade': {
@@ -137,7 +108,7 @@ export class BoloTieBehavior3D implements AIBehavior3D {
             }
             break;
           case 'scissors': {
-            const sp = Math.floor(t / 0.7) % 2;
+            const sp = Math.floor(t / 1.6) % 2;
             yaw = sp === 0 ? d * I : -d * I;
             pitch = (sp === 0 ? -0.3 : 0.3) * I;
             thrust = 0.7;
@@ -169,14 +140,12 @@ export class BoloTieBehavior3D implements AIBehavior3D {
   private _setPhase(phase: Phase): void {
     this.phase = phase;
     this.phaseTimer = 0;
-    if (phase !== 'engage') this.isCharging = false;
+    this.isCharging = false;
     const r = (chaos(this.timer, this.seed) + 1) * 0.5;
     switch (phase) {
       case 'chase':     this.phaseDuration = 5; break;
-      case 'engage':    this.phaseDuration = 1.5 + r * 1.5; break;
-      case 'overshoot': this.phaseDuration = 0.8 + r * 0.5; break;
       case 'evade': {
-        this.phaseDuration = 2.5 + r * 1.5;
+        this.phaseDuration = 5.0 + r * 3.0;
         this.maneuverDir *= -1;
         const maneuvers: Maneuver[] = ['break_turn','break_turn','dive_pull','dive_pull','climb_roll','split_s','scissors','throttle_cut'];
         const pick = Math.floor((chaos(this.timer * 5, this.seed) + 1) * 0.5 * maneuvers.length) % maneuvers.length;

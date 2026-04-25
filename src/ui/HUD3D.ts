@@ -244,6 +244,15 @@ export class HUD3D {
       .ladder-rung .rung-label.right { left:calc(50% + 72px); }
       .ladder-rung-zero .rung-line { border-top-width:2px;border-top-color:rgba(0,220,255,0.5); }
       .ladder-rung-zero .rung-label { color:rgba(0,220,255,0.55); }
+      /* Mobile — shrink pitch ladder to take up less of the small screen */
+      @media (max-width: 430px), (max-height: 430px) {
+        .ladder-container {
+          transform: translate(-50%, -50%) scale(0.6);
+        }
+        .ladder-wings {
+          transform: translate(-50%, -50%) scale(0.7);
+        }
+      }
       /* Fixed center wings marker */
       .ladder-wings {
         position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);

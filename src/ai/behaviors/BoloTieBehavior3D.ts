@@ -126,6 +126,10 @@ export class BoloTieBehavior3D implements AIBehavior3D {
             }
             break;
         }
+        // Opportunistic fire across all evade maneuvers when player drifts into the cone
+        if (this.maneuver !== 'wide_orbit' && facing > this.cfg.fireCone && dist < engageRange * 1.5) {
+          if (now - self.lastFireTime >= this.fireRate) fire = true;
+        }
         break;
       }
     }
@@ -149,7 +153,7 @@ export class BoloTieBehavior3D implements AIBehavior3D {
     switch (phase) {
       case 'chase':     this.phaseDuration = 3; break; // short chase — quickly returns to orbiting
       case 'evade': {
-        this.phaseDuration = 8.0 + r * 5.0; // very long lazy evades
+        this.phaseDuration = 4.0 + r * 2.5; // 4-6.5s — return to chase/orbit faster
         this.maneuverDir *= -1;
         // Heavily weighted toward wide_orbit — signature move
         const maneuvers: Maneuver[] = ['wide_orbit','wide_orbit','wide_orbit','wide_orbit','break_turn','climb_roll','throttle_cut'];

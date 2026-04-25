@@ -94,8 +94,8 @@ export class RustyBehavior3D implements AIBehavior3D {
         break;
 
       case 'tail':
-        if (enemyAhead > 0.3) {
-          // Player turned to face us — break!
+        if (enemyAhead > 0.5) {
+          // Player turned to face us solidly — break!
           this._setPhase('evade');
         } else if (this.phaseTimer > this.phaseDuration) {
           // Break off before becoming predictable
@@ -150,9 +150,9 @@ export class RustyBehavior3D implements AIBehavior3D {
         pitch = steer.pitch;
         thrust = 1.0; // full speed to reposition
 
-        // Opportunistic fire if aligned during the maneuver
-        if (facing > this.cfg.fireCone && dist < engageRange) {
-          if (now - self.lastFireTime >= this.fireRate) fire = true;
+        // Aggressive snap-fire during the flank — fire whenever briefly aligned
+        if (facing > this.cfg.fireCone) {
+          if (now - self.lastFireTime >= this.fireRate * 0.7) fire = true;
         }
         break;
       }
@@ -177,8 +177,8 @@ export class RustyBehavior3D implements AIBehavior3D {
         thrust = dist > 100 ? 1.0 : dist < 50 ? 0.15 : 0.5;
 
         // Aggressive firing when on the six — wider cone, faster rate
-        if (facing > this.cfg.fireCone * 0.7) {
-          if (now - self.lastFireTime >= this.fireRate * 0.4) fire = true;
+        if (facing > this.cfg.fireCone * 0.6) {
+          if (now - self.lastFireTime >= this.fireRate * 0.3) fire = true;
         }
         break;
       }
@@ -254,9 +254,9 @@ export class RustyBehavior3D implements AIBehavior3D {
             break;
         }
 
-        // Opportunistic fire during evasion
-        if (dist < engageRange && facing > this.cfg.fireCone + 0.1) {
-          if (now - self.lastFireTime >= this.fireRate * 1.5) fire = true;
+        // Opportunistic fire during evasion — fire at normal rate when aligned
+        if (facing > this.cfg.fireCone + 0.1) {
+          if (now - self.lastFireTime >= this.fireRate) fire = true;
         }
         break;
       }
@@ -283,10 +283,10 @@ export class RustyBehavior3D implements AIBehavior3D {
 
     switch (phase) {
       case 'chase':     this.phaseDuration = 2; break;              // brief chase
-      case 'flank':     this.phaseDuration = 5 + r * 3; break;     // 5-8s flanking at distance
-      case 'tail':      this.phaseDuration = 2 + r * 2; break;     // 2-4s on the six then break off
+      case 'flank':     this.phaseDuration = 4 + r * 2; break;     // 4-6s flanking at distance
+      case 'tail':      this.phaseDuration = 4 + r * 3; break;     // 4-7s on the six — committed pursuit
       case 'evade': {
-        this.phaseDuration = 7.0 + r * 4.0; // 7-11s long evasion
+        this.phaseDuration = 3.0 + r * 2.0; // 3-5s short evasion — get back on the offense fast
         this.maneuverDir *= -1;
 
         // Pick maneuver — weighted toward repositioning moves

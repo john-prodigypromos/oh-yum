@@ -170,7 +170,7 @@ export class BowTieBehavior3D implements AIBehavior3D {
     switch (phase) {
       case 'chase':     this.phaseDuration = 2.5; break; // brief chase then back to maneuvers
       case 'evade': {
-        this.phaseDuration = 7.0 + r * 4.0; // long vertical maneuver sequences
+        this.phaseDuration = 4.0 + r * 2.0; // 4-6s — quick reset, more time pressuring the player
         this.maneuverDir *= -1;
         // Heavily weighted toward vertical maneuvers
         const maneuvers: Maneuver[] = ['yo_yo','yo_yo','yo_yo','dive_pull','dive_pull','split_s','split_s','climb_roll','scissors'];

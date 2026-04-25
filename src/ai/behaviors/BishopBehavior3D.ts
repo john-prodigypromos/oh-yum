@@ -209,7 +209,7 @@ export class BishopBehavior3D implements AIBehavior3D {
     switch (phase) {
       case 'chase':     this.phaseDuration = 2; break; // very brief chase — constantly shifting
       case 'evade': {
-        this.phaseDuration = (6.0 + r * 4.0) * berserk; // long erratic evasion sequences
+        this.phaseDuration = (3.5 + r * 2.0) * berserk; // 3.5-5.5s × berserk — relentless re-engagement
         this.maneuverDir *= -1;
         // Ghost maneuvers — corkscrew, feints, snap turns
         const maneuvers: Maneuver[] = ['corkscrew','corkscrew','corkscrew','feint','feint','snap_turn','snap_turn','dive_pull','scissors','throttle_cut'];

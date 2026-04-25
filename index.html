@@ -324,14 +324,11 @@
     ::-webkit-scrollbar-thumb { background: rgba(0, 180, 255, 0.15); border-radius: 2px; }
 
     /* ── Enemy-kill portrait flash (created in ArenaLoop) ── */
+    /* On mobile / small screens, hide entirely — it covers too much of the play area.
+       Desktop keeps the full-size villain portrait flash. */
     @media (max-width: 600px), (max-height: 500px) {
       .kill-overlay {
-        width: min(225px, 35vw) !important;
-        top: 20px !important;
-      }
-      .kill-overlay-text {
-        font-size: clamp(14px, 3vw, 24px) !important;
-        letter-spacing: 4px !important;
+        display: none !important;
       }
     }
 

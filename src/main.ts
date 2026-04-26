@@ -202,10 +202,10 @@ function showTitleOverlay(): void {
   selectLabel.style.marginBottom = '16px';
   panel.appendChild(selectLabel);
 
-  const difficulties: { key: DifficultyLevel; label: string; color: string; desc: string }[] = [
-    { key: 'beginner', label: 'BEGINNER', color: '#44ff44', desc: 'Slow enemy • Extra shields • Relaxed pace' },
-    { key: 'intermediate', label: 'INTERMEDIATE', color: '#ffcc00', desc: 'Balanced combat • Standard loadout' },
-    { key: 'expert', label: 'EXPERT', color: '#ff4444', desc: 'Fast & aggressive • Tough enemy • Less armor' },
+  const difficulties: { key: DifficultyLevel; label: string; color: string }[] = [
+    { key: 'beginner', label: 'BEGINNER', color: '#44ff44' },
+    { key: 'intermediate', label: 'INTERMEDIATE', color: '#ffcc00' },
+    { key: 'expert', label: 'EXPERT', color: '#ff4444' },
   ];
 
   for (const d of difficulties) {
@@ -214,11 +214,6 @@ function showTitleOverlay(): void {
     btn.style.borderColor = d.color;
     btn.style.color = d.color;
     btn.textContent = d.label;
-
-    const desc = document.createElement('div');
-    desc.textContent = d.desc;
-    desc.className = 'btn-desc';
-    btn.appendChild(desc);
 
     btn.addEventListener('click', () => {
       setDifficulty(d.key);

@@ -53,6 +53,48 @@ function releaseDamageOverlay(el: HTMLDivElement, delayMs: number): void {
   setTimeout(() => { el.style.display = 'none'; }, delayMs);
 }
 
+// ── Player-death visuals: fullscreen fire flash + screen-spread explosions ──
+// Used when the player is killed by an enemy bolt OR crashes into a celestial body.
+function spawnPlayerDeathFireFlash(overlay: HTMLElement): void {
+  const fireFlash = document.createElement('div');
+  fireFlash.className = 'death-fx';
+  fireFlash.style.cssText =
+    'position:fixed;top:0;left:0;width:100%;height:100%;' +
+    'background:' +
+    'radial-gradient(ellipse at 30% 35%, rgba(255,240,160,0.55) 0%, rgba(255,140,40,0) 42%),' +
+    'radial-gradient(ellipse at 70% 60%, rgba(255,200,80,0.55) 0%, rgba(255,100,20,0) 45%),' +
+    'radial-gradient(ellipse at 50% 50%, rgba(255,255,210,0.95) 0%, rgba(255,210,70,0.92) 14%, rgba(255,140,40,0.88) 30%, rgba(255,70,20,0.78) 55%, rgba(160,30,10,0.65) 80%, rgba(40,8,0,0.5) 100%);' +
+    'z-index:50;pointer-events:none;opacity:1;transition:opacity 2.5s ease-out;';
+  overlay.appendChild(fireFlash);
+  requestAnimationFrame(() => { fireFlash.style.opacity = '0'; });
+  setTimeout(() => fireFlash.remove(), 2700);
+}
+
+function spawnPlayerDeathScreenExplosions(explosions: ExplosionPool): void {
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  const cx = w / 2, cy = h / 2;
+  // Center mega-blast
+  explosions.spawnAt(cx, cy, 1400, 'boom1', 6.0);
+  // Spread fireballs across the whole screen — covers the entire view in flame
+  explosions.spawnAt(w * 0.20, h * 0.30, 900, 'boom1', 4.5);
+  explosions.spawnAt(w * 0.80, h * 0.30, 900, 'boom1', 4.5);
+  explosions.spawnAt(w * 0.20, h * 0.70, 900, 'boom1', 4.5);
+  explosions.spawnAt(w * 0.80, h * 0.70, 900, 'boom1', 4.5);
+  explosions.spawnAt(w * 0.50, h * 0.18, 800, 'boom1', 4.0);
+  explosions.spawnAt(w * 0.50, h * 0.82, 800, 'boom1', 4.0);
+  explosions.spawnAt(w * 0.10, h * 0.50, 700, 'boom1', 3.8);
+  explosions.spawnAt(w * 0.90, h * 0.50, 700, 'boom1', 3.8);
+  // Staggered second wave so the fire sustains
+  setTimeout(() => {
+    explosions.spawnAt(w * 0.35, h * 0.40, 850, 'boom1', 4.0);
+    explosions.spawnAt(w * 0.65, h * 0.60, 850, 'boom1', 4.0);
+  }, 180);
+  setTimeout(() => {
+    explosions.spawnAt(cx, cy, 1100, 'boom1', 5.0);
+  }, 380);
+}
+
 export interface ArenaState {
   player: Ship3D;
   enemies: Ship3D[];
@@ -562,7 +604,7 @@ export function updateArena(
         }
         state.sound.explosion();
 
-        // ── PLAYER DEATH — massive in-your-face explosion ──
+        // ── PLAYER DEATH — massive in-your-face fire explosion ──
         if (evt.target.isPlayer) {
           state.gameOver = true;
           state.gameOverTime = now;
@@ -570,18 +612,8 @@ export function updateArena(
           cockpitCam.shake(7.0);
           setTimeout(() => state.sound.explosion(), 60);
 
-          const whiteFlash = document.createElement('div');
-          whiteFlash.className = 'death-fx';
-          whiteFlash.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:white;z-index:50;pointer-events:none;opacity:1.0;transition:opacity 2.0s ease-out;';
-          overlay.appendChild(whiteFlash);
-          requestAnimationFrame(() => { whiteFlash.style.opacity = '0'; });
-          setTimeout(() => whiteFlash.remove(), 2200);
-
-          const cx = window.innerWidth / 2;
-          const cy = window.innerHeight / 2;
-          explosions.spawnAt(cx, cy, 700, 'boom1', 5.0);
-          explosions.spawnAt(cx - 120, cy - 80, 500, 'boom1', 3.5);
-          explosions.spawnAt(cx + 120, cy + 60, 500, 'boom1', 3.5);
+          spawnPlayerDeathFireFlash(overlay);
+          spawnPlayerDeathScreenExplosions(explosions);
         }
       }
     } catch (e) {
@@ -636,24 +668,8 @@ export function updateArena(
 
     const overlay = document.getElementById('ui-overlay');
     if (overlay) {
-      const flash = document.createElement('div');
-      flash.className = 'death-fx';
-      flash.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:white;z-index:50;pointer-events:none;opacity:1.0;transition:opacity 2.0s ease-out;';
-      overlay.appendChild(flash);
-      requestAnimationFrame(() => { flash.style.opacity = '0'; });
-      setTimeout(() => flash.remove(), 2200);
-
-      // Massive multi-burst explosion filling the screen
-      const cx = window.innerWidth / 2;
-      const cy = window.innerHeight / 2;
-      explosions.spawnAt(cx, cy, 800, 'boom1', 6.0);
-      explosions.spawnAt(cx - 150, cy - 100, 600, 'boom1', 4.5);
-      explosions.spawnAt(cx + 150, cy + 80, 600, 'boom1', 4.5);
-      explosions.spawnAt(cx, cy - 150, 500, 'boom1', 3.5);
-      setTimeout(() => {
-        explosions.spawnAt(cx + 100, cy, 700, 'boom1', 5.0);
-        explosions.spawnAt(cx - 100, cy + 100, 500, 'boom1', 4.0);
-      }, 100);
+      spawnPlayerDeathFireFlash(overlay);
+      spawnPlayerDeathScreenExplosions(explosions);
     }
 
     state.gameOver = true;

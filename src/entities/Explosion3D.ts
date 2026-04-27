@@ -108,20 +108,20 @@ export class ExplosionPool {
   spawnDeathWorld(worldPos: THREE.Vector3, _camera?: THREE.PerspectiveCamera): void {
     const tmp = this.tmpVec;
 
-    // Core blasts — bright overlapping
-    this.spawnSprite(worldPos, 35, 1.8, 0xffffff);
-    tmp.copy(worldPos).addScalar(0); tmp.x += (Math.random() - 0.5) * 3; tmp.y += (Math.random() - 0.5) * 3;
-    this.spawnSprite(tmp, 28, 1.5, 0xffcc66);
-    tmp.copy(worldPos); tmp.x += (Math.random() - 0.5) * 4; tmp.y += (Math.random() - 0.5) * 4; tmp.z += (Math.random() - 0.5) * 4;
-    this.spawnSprite(tmp, 22, 1.4, 0xff8833);
+    // Core blasts — bright overlapping (3x scale: enemy craft explosions 200% larger)
+    this.spawnSprite(worldPos, 105, 1.8, 0xffffff);
+    tmp.copy(worldPos).addScalar(0); tmp.x += (Math.random() - 0.5) * 9; tmp.y += (Math.random() - 0.5) * 9;
+    this.spawnSprite(tmp, 84, 1.5, 0xffcc66);
+    tmp.copy(worldPos); tmp.x += (Math.random() - 0.5) * 12; tmp.y += (Math.random() - 0.5) * 12; tmp.z += (Math.random() - 0.5) * 12;
+    this.spawnSprite(tmp, 66, 1.4, 0xff8833);
 
     // Secondary fireballs — staggered
     for (let i = 0; i < 5; i++) {
       const delay = 40 + i * 50 + Math.random() * 40;
-      const offsetX = (Math.random() - 0.5) * 8;
-      const offsetY = (Math.random() - 0.5) * 8;
-      const offsetZ = (Math.random() - 0.5) * 6;
-      const scale = 12 + Math.random() * 10;
+      const offsetX = (Math.random() - 0.5) * 24;
+      const offsetY = (Math.random() - 0.5) * 24;
+      const offsetZ = (Math.random() - 0.5) * 18;
+      const scale = 36 + Math.random() * 30;
       const life = 0.9 + Math.random() * 0.6;
       setTimeout(() => {
         this.tmpVec.copy(worldPos);
@@ -136,11 +136,11 @@ export class ExplosionPool {
     for (let i = 0; i < 8; i++) {
       const delay = Math.random() * 400;
       const angle = Math.random() * Math.PI * 2;
-      const radius = 4 + Math.random() * 6;
+      const radius = 12 + Math.random() * 18;
       const dx = Math.cos(angle) * radius;
       const dz = Math.sin(angle) * radius;
-      const dy = (Math.random() - 0.5) * 4;
-      const scale = 2 + Math.random() * 3;
+      const dy = (Math.random() - 0.5) * 12;
+      const scale = 6 + Math.random() * 9;
       const life = 0.3 + Math.random() * 0.4;
       setTimeout(() => {
         this.tmpVec.copy(worldPos);
